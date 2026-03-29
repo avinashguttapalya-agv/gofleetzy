@@ -162,13 +162,65 @@ footer{padding:48px 5vw;border-top:1px solid var(--border);display:grid;grid-tem
 .footer-col a:hover{color:var(--ink)}
 .footer-bottom{padding:24px 5vw;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--stone)}
 
+/* DEMO SIMULATOR */
+.demo-section{background:var(--ink);padding:96px 5vw;position:relative;overflow:hidden}
+.demo-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 80% at 60% 50%,rgba(200,96,58,.1),transparent 65%);pointer-events:none}
+.demo-section .section-label{color:rgba(200,96,58,.8)}
+.demo-section h2{color:white}
+.demo-section h2 em{color:var(--accent2)}
+.demo-section .section-sub{color:rgba(255,255,255,.5)}
+.demo-layout{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:52px;align-items:start}
+.demo-form-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:28px;backdrop-filter:blur(10px)}
+.demo-form-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:20px}
+.demo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.demo-group{display:flex;flex-direction:column;gap:5px}
+.demo-group.full{grid-column:1/-1}
+.demo-label{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.4px}
+.demo-input,.demo-select{padding:10px 13px;border:1.5px solid rgba(255,255,255,.12);border-radius:8px;font-size:14px;font-family:'Outfit',sans-serif;color:white;background:rgba(255,255,255,.07);outline:none;transition:border-color .15s;width:100%}
+.demo-input::placeholder{color:rgba(255,255,255,.25)}
+.demo-input:focus,.demo-select:focus{border-color:var(--accent2)}
+.demo-select option{background:#1a1a18;color:white}
+.demo-btn{width:100%;margin-top:16px;padding:14px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.demo-btn:hover{background:#b35432;transform:translateY(-1px)}
+.demo-presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.demo-preset{padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);font-size:12px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap}
+.demo-preset:hover{background:rgba(200,96,58,.2);border-color:var(--accent2);color:white}
+
+/* RESULT PANEL */
+.demo-result{display:flex;flex-direction:column;gap:16px}
+.result-score-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:28px;text-align:center;transition:all .4s}
+.result-score-num{font-family:'Instrument Serif',serif;font-size:80px;line-height:1;transition:color .4s}
+.result-score-label{font-size:13px;font-weight:700;margin-top:6px;letter-spacing:.5px;text-transform:uppercase;transition:color .4s}
+.result-status-bar{height:6px;border-radius:3px;margin:16px 0 8px;background:rgba(255,255,255,.1);overflow:hidden}
+.result-status-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1),background .4s}
+.result-verdict{font-size:14px;color:rgba(255,255,255,.6);line-height:1.6;min-height:44px;transition:all .3s}
+.result-factors{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;display:none}
+.result-factors.show{display:block}
+.result-factors-title{font-size:11px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+.factor-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.factor-row:last-child{margin-bottom:0}
+.factor-name{font-size:12px;color:rgba(255,255,255,.55);flex:1;min-width:0}
+.factor-bar-bg{width:80px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;flex-shrink:0}
+.factor-bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.factor-pts{font-size:12px;font-weight:700;min-width:34px;text-align:right;flex-shrink:0}
+.result-cta{background:var(--accent);border-radius:12px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;transition:all .15s;display:none}
+.result-cta.show{display:flex}
+.result-cta:hover{background:#b35432;transform:translateY(-1px)}
+.result-cta-text{font-size:14px;font-weight:600;color:white;line-height:1.4}
+.result-cta-text span{display:block;font-size:12px;font-weight:400;opacity:.8;margin-top:2px}
+.result-cta-arrow{font-size:20px;color:white;flex-shrink:0}
+.idle-state{text-align:center;padding:32px 20px;color:rgba(255,255,255,.25)}
+.idle-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.idle-text{font-size:14px;line-height:1.6}
+
 @media(max-width:900px){
   .how-grid,.tiers-grid,.testimonials-grid{grid-template-columns:1fr}
-  .features-layout{grid-template-columns:1fr}
+  .features-layout,.demo-layout{grid-template-columns:1fr}
   .stats-bar{grid-template-columns:1fr 1fr}
   footer{grid-template-columns:1fr 1fr}
   .cta-section{padding:48px 28px;margin:0 4vw 60px}
   .nav-links{display:none}
+  .demo-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -181,6 +233,7 @@ footer{padding:48px 5vw;border-top:1px solid var(--border);display:grid;grid-tem
   </div>
   <div class="nav-links">
     <a href="#how">How It Works</a>
+    <a href="#demo">Try Demo</a>
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
@@ -237,6 +290,124 @@ footer{padding:48px 5vw;border-top:1px solid var(--border);display:grid;grid-tem
       <div class="how-icon">📊</div>
       <div class="how-title">Export & present reports</div>
       <div class="how-desc">Generate professional PDF reports with full score breakdowns to present to management or clients. Branded, printable, and ready to share.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO SIMULATOR -->
+<section id="demo" class="demo-section">
+  <div class="section-label">Live Demo</div>
+  <h2>Try it right now —<br>no sign-up <em>needed</em></h2>
+  <p class="section-sub">Enter one of your vehicles and get an instant replacement score. See exactly which factors are driving the result.</p>
+  <div class="demo-layout">
+    <!-- FORM -->
+    <div class="demo-form-card">
+      <div class="demo-form-title">Quick Vehicle Simulator</div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:8px">Load a preset</div>
+        <div class="demo-presets">
+          <button class="demo-preset" onclick="loadPreset('old_workhorse')">🚛 Old Workhorse</button>
+          <button class="demo-preset" onclick="loadPreset('nearly_new')">✨ Nearly New</button>
+          <button class="demo-preset" onclick="loadPreset('borderline')">⚠️ Borderline</button>
+          <button class="demo-preset" onclick="loadPreset('rental_car')">🚗 Rental Car</button>
+          <button class="demo-preset" onclick="loadPreset('high_cost')">💸 High-Cost</button>
+        </div>
+      </div>
+      <div class="demo-grid">
+        <div class="demo-group full">
+          <label class="demo-label">Make &amp; Model</label>
+          <input class="demo-input" id="d-model" placeholder="e.g. Ford Transit"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Brand</label>
+          <select class="demo-select" id="d-brand">
+            <option value="">Select</option>
+            <option value="toyota">Toyota</option><option value="lexus">Lexus</option>
+            <option value="honda">Honda</option><option value="mazda">Mazda</option>
+            <option value="subaru">Subaru</option><option value="hyundai">Hyundai</option>
+            <option value="kia">Kia</option><option value="nissan">Nissan</option>
+            <option value="ford">Ford</option><option value="chevrolet">Chevrolet</option>
+            <option value="gmc">GMC</option><option value="dodge">Dodge</option>
+            <option value="ram">RAM</option><option value="jeep">Jeep</option>
+            <option value="bmw">BMW</option><option value="mercedes">Mercedes-Benz</option>
+            <option value="audi">Audi</option><option value="volkswagen">Volkswagen</option>
+            <option value="landrover">Land Rover</option><option value="other">Other</option>
+          </select>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Year</label>
+          <input class="demo-input" id="d-year" type="number" placeholder="e.g. 2016" min="1990" max="2026"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Mileage (km)</label>
+          <input class="demo-input" id="d-mileage" type="number" placeholder="e.g. 145000"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Annual km</label>
+          <input class="demo-input" id="d-annual" type="number" placeholder="e.g. 25000"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Maint. Cost ($/yr)</label>
+          <input class="demo-input" id="d-maint" type="number" placeholder="e.g. 3000"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Vehicle Value ($)</label>
+          <input class="demo-input" id="d-value" type="number" placeholder="e.g. 12000"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Fuel Cost ($/yr)</label>
+          <input class="demo-input" id="d-fuelcost" type="number" placeholder="e.g. 3500"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Downtime Days/yr</label>
+          <input class="demo-input" id="d-downtime" type="number" placeholder="e.g. 6"/>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Condition</label>
+          <select class="demo-select" id="d-condition">
+            <option value="">Select</option>
+            <option value="excellent">Excellent</option><option value="good">Good</option>
+            <option value="fair">Fair</option><option value="poor">Poor</option>
+          </select>
+        </div>
+        <div class="demo-group">
+          <label class="demo-label">Fuel Type</label>
+          <select class="demo-select" id="d-fueltype">
+            <option value="">Select</option>
+            <option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
+            <option value="diesel">Diesel</option><option value="phev">PHEV</option>
+            <option value="bev">Electric (BEV)</option>
+          </select>
+        </div>
+      </div>
+      <button class="demo-btn" onclick="runDemo()">⚡ Calculate Replacement Score</button>
+    </div>
+
+    <!-- RESULT -->
+    <div class="demo-result">
+      <div class="result-score-card" id="result-card">
+        <div class="idle-state" id="idle-state">
+          <div class="idle-icon">🚗</div>
+          <div class="idle-text">Fill in your vehicle details<br>and hit Calculate to see the score.</div>
+        </div>
+        <div id="result-content" style="display:none">
+          <div class="result-score-num" id="result-num">0</div>
+          <div class="result-score-label" id="result-label">—</div>
+          <div class="result-status-bar"><div class="result-status-fill" id="result-bar"></div></div>
+          <div class="result-verdict" id="result-verdict"></div>
+        </div>
+      </div>
+      <div class="result-factors" id="result-factors">
+        <div class="result-factors-title">Score breakdown by factor</div>
+        <div id="factor-rows"></div>
+      </div>
+      <a href="app.html?signup=1" class="result-cta" id="result-cta">
+        <div class="result-cta-text">
+          Add this vehicle to your full fleet
+          <span>Track all vehicles, export PDF reports, and manage your team</span>
+        </div>
+        <div class="result-cta-arrow">→</div>
+      </a>
     </div>
   </div>
 </section>
@@ -469,11 +640,12 @@ footer{padding:48px 5vw;border-top:1px solid var(--border);display:grid;grid-tem
 </div>
 
 <script>
+// ── FAQ ──
 function toggleFaq(el) {
-  const item = el.closest('.faq-item');
-  item.classList.toggle('open');
+  el.closest('.faq-item').classList.toggle('open');
 }
-// Animate stats on scroll
+
+// ── Scroll animation ──
 const observer = new IntersectionObserver(entries => {
   entries.forEach(e => { if(e.isIntersecting) e.target.style.opacity = '1'; });
 }, {threshold:0.1});
@@ -482,6 +654,196 @@ document.querySelectorAll('.stat-num,.how-card,.testi-card').forEach(el => {
   el.style.transition = 'opacity 0.5s ease';
   observer.observe(el);
 });
+
+// ── DEMO SIMULATOR ──
+const CY = new Date().getFullYear();
+
+const BRAND_REL = {toyota:0,lexus:0,honda:0,acura:0,mazda:1,subaru:1,hyundai:2,kia:2,nissan:3,volkswagen:3,ford:4,chevrolet:6,gmc:6,dodge:6,ram:5,jeep:7,bmw:4,mercedes:4,audi:5,landrover:8,fiat:8,alfa:8,other:3};
+const BRAND_NAME = {toyota:'Toyota',lexus:'Lexus',honda:'Honda',mazda:'Mazda',subaru:'Subaru',hyundai:'Hyundai',kia:'Kia',nissan:'Nissan',ford:'Ford',chevrolet:'Chevrolet',gmc:'GMC',dodge:'Dodge',ram:'RAM',jeep:'Jeep',bmw:'BMW',mercedes:'Mercedes',audi:'Audi',volkswagen:'VW',landrover:'Land Rover',other:'Other'};
+const BRAND_REL_LABEL = {0:'Excellent',1:'Very Good',2:'Good',3:'Average',4:'Below Avg',5:'Below Avg',6:'Poor',7:'Poor',8:'Very Poor'};
+
+const PRESETS = {
+  old_workhorse: {model:'Ford Transit 2.0',brand:'ford',year:'2013',mileage:'245000',annual:'38000',maint:'5800',value:'7000',fuelcost:'5200',downtime:'20',condition:'fair',fueltype:'diesel'},
+  nearly_new:    {model:'Toyota Camry',brand:'toyota',year:'2023',mileage:'22000',annual:'18000',maint:'600',value:'28000',fuelcost:'1800',downtime:'0',condition:'excellent',fueltype:'hybrid'},
+  borderline:    {model:'Honda CR-V',brand:'honda',year:'2017',mileage:'148000',annual:'26000',maint:'2900',value:'13000',fuelcost:'3200',downtime:'6',condition:'fair',fueltype:'gasoline'},
+  rental_car:    {model:'Nissan Qashqai',brand:'nissan',year:'2018',mileage:'192000',annual:'45000',maint:'3400',value:'9500',fuelcost:'5800',downtime:'14',condition:'fair',fueltype:'gasoline'},
+  high_cost:     {model:'Land Rover Discovery',brand:'landrover',year:'2016',mileage:'162000',annual:'22000',maint:'7200',value:'18000',fuelcost:'4100',downtime:'22',condition:'poor',fueltype:'diesel'},
+};
+
+function loadPreset(key) {
+  const p = PRESETS[key]; if(!p) return;
+  document.getElementById('d-model').value = p.model;
+  document.getElementById('d-brand').value = p.brand;
+  document.getElementById('d-year').value = p.year;
+  document.getElementById('d-mileage').value = p.mileage;
+  document.getElementById('d-annual').value = p.annual;
+  document.getElementById('d-maint').value = p.maint;
+  document.getElementById('d-value').value = p.value;
+  document.getElementById('d-fuelcost').value = p.fuelcost;
+  document.getElementById('d-downtime').value = p.downtime;
+  document.getElementById('d-condition').value = p.condition;
+  document.getElementById('d-fueltype').value = p.fueltype;
+  runDemo();
+}
+
+function calcScore(v) {
+  let total = 0; const factors = [];
+
+  // 1. Age
+  const age = CY - parseInt(v.year || CY);
+  let agePts = age<=3?age:age<=6?3+(age-3)*2:age<=9?9+(age-6)*3.5:age<=12?19.5+(age-9)*.5:20;
+  agePts = Math.round(Math.min(agePts, 20));
+  factors.push({label:'Age (TCO crossover)',pts:agePts,max:20,val:`${age} yrs`});
+  total += agePts;
+
+  // 2. Mileage
+  const km = parseInt(v.mileage)||0;
+  const kmPts = Math.round(Math.min(km/12500, 20));
+  factors.push({label:'Mileage',pts:kmPts,max:20,val:`${km.toLocaleString()} km`});
+  total += kmPts;
+
+  // 3. CPM
+  const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0, fuel=parseInt(v.fuelcost)||0;
+  let cpmPts=0, cpmVal='—';
+  if(annual>0 && (maint+fuel)>0){
+    const cpm=(maint+fuel)/annual; cpmVal='$'+cpm.toFixed(2)+'/km';
+    if(cpm<=.17) cpmPts=0;
+    else if(cpm<=.25) cpmPts=Math.round((cpm-.17)/.08*8);
+    else if(cpm<=.40) cpmPts=Math.round(8+(cpm-.25)/.15*8);
+    else cpmPts=Math.round(16+Math.min((cpm-.40)/.20*4,4));
+    cpmPts=Math.min(cpmPts,20);
+  }
+  factors.push({label:'Cost per km (CPM)',pts:cpmPts,max:20,val:cpmVal});
+  total += cpmPts;
+
+  // 4. Repair-to-value
+  const value=parseInt(v.value)||0;
+  let rtvPts=0, rtvVal='—';
+  if(value>0 && maint>0){
+    const r=maint/value; rtvVal=Math.round(r*100)+'% of value';
+    if(r<=.10) rtvPts=0;
+    else if(r<=.30) rtvPts=Math.round((r-.10)/.20*7);
+    else if(r<=.50) rtvPts=Math.round(7+(r-.30)/.20*8);
+    else rtvPts=15;
+    rtvPts=Math.min(rtvPts,15);
+  }
+  factors.push({label:'Repair-to-value ratio',pts:rtvPts,max:15,val:rtvVal});
+  total += rtvPts;
+
+  // 5. Downtime
+  const dt=parseInt(v.downtime)||0;
+  let dtPts=dt<=2?0:dt<=5?Math.round((dt-2)/3*5):dt<=15?Math.round(5+(dt-5)/10*10):15;
+  dtPts=Math.min(dtPts,15);
+  factors.push({label:'Downtime days',pts:dtPts,max:15,val:`${dt} days/yr`});
+  total += dtPts;
+
+  // 6. Brand
+  const brand=v.brand||'other';
+  const brandPts=Math.min(BRAND_REL[brand]??3,10);
+  factors.push({label:'Brand reliability',pts:brandPts,max:10,val:`${BRAND_NAME[brand]||'—'} · ${BRAND_REL_LABEL[brandPts]||'Avg'}`});
+  total += brandPts;
+
+  // 7. Fuel + condition
+  const fuelMap={gasoline:0,hybrid:0,diesel:1,phev:3,bev:5,'':0};
+  const condMap={excellent:-5,good:0,fair:3,poor:5,'':0};
+  const f7=Math.max(0,Math.min((fuelMap[v.fueltype||'']||0)+(condMap[v.condition||'']||0),10));
+  const ftLabel={gasoline:'Gasoline',hybrid:'Hybrid',diesel:'Diesel',phev:'PHEV',bev:'BEV','':'—'};
+  factors.push({label:'Fuel type + condition',pts:f7,max:10,val:`${ftLabel[v.fueltype||'']} / ${v.condition||'—'}`});
+  total += f7;
+
+  return {score:Math.min(Math.round(total),100), factors};
+}
+
+function getVerdict(score, v) {
+  const age = CY - parseInt(v.year||CY);
+  const km = parseInt(v.mileage)||0;
+  if(score >= 65) {
+    const reasons = [];
+    if(age >= 9) reasons.push(`${age}-year-old vehicle past its cost crossover point`);
+    if(km >= 150000) reasons.push(`high mileage at ${km.toLocaleString()} km`);
+    if(parseInt(v.downtime) >= 10) reasons.push(`${v.downtime} downtime days costing $${(parseInt(v.downtime)*600).toLocaleString()}/yr in lost productivity`);
+    return `⚠️ This vehicle should be replaced. ${reasons.length ? 'Key drivers: ' + reasons.slice(0,2).join(', ') + '.' : 'Multiple cost factors are above healthy thresholds.'}`;
+  } else if(score >= 40) {
+    return `👀 This vehicle is in the watch zone. Monitor closely over the next 6–12 months — costs are trending upward but replacement isn't urgent yet.`;
+  } else {
+    return `✅ This vehicle is in good shape. No urgent action needed. Re-evaluate when mileage crosses 120,000 km or age reaches 7 years.`;
+  }
+}
+
+function runDemo() {
+  const v = {
+    model: document.getElementById('d-model').value||'Your Vehicle',
+    brand: document.getElementById('d-brand').value,
+    year: document.getElementById('d-year').value,
+    mileage: document.getElementById('d-mileage').value,
+    annual: document.getElementById('d-annual').value,
+    maint: document.getElementById('d-maint').value,
+    value: document.getElementById('d-value').value,
+    fuelcost: document.getElementById('d-fuelcost').value,
+    downtime: document.getElementById('d-downtime').value,
+    condition: document.getElementById('d-condition').value,
+    fueltype: document.getElementById('d-fueltype').value,
+  };
+
+  if(!v.year && !v.mileage) {
+    // nudge user
+    document.getElementById('d-year').style.borderColor='var(--accent2)';
+    setTimeout(()=>document.getElementById('d-year').style.borderColor='',2000);
+    return;
+  }
+
+  const {score, factors} = calcScore(v);
+  const scoreColor = score>=65?'#e87878':score>=40?'#e8c040':'#60c890';
+  const scoreLabel = score>=65?'REPLACE NOW':score>=40?'WATCH':'HEALTHY';
+
+  // Show result card
+  document.getElementById('idle-state').style.display = 'none';
+  document.getElementById('result-content').style.display = 'block';
+
+  // Animate score counting up
+  const numEl = document.getElementById('result-num');
+  let current = 0;
+  const step = Math.ceil(score / 30);
+  const counter = setInterval(() => {
+    current = Math.min(current + step, score);
+    numEl.textContent = current;
+    if(current >= score) clearInterval(counter);
+  }, 30);
+
+  document.getElementById('result-num').style.color = scoreColor;
+  document.getElementById('result-label').textContent = scoreLabel;
+  document.getElementById('result-label').style.color = scoreColor;
+  document.getElementById('result-bar').style.width = score + '%';
+  document.getElementById('result-bar').style.background = scoreColor;
+  document.getElementById('result-verdict').textContent = getVerdict(score, v);
+
+  // Factor rows
+  const factorContainer = document.getElementById('factor-rows');
+  factorContainer.innerHTML = factors.map(f => {
+    const pct = Math.round(f.pts/f.max*100);
+    const fc = pct>=70?'#e87878':pct>=40?'#e8c040':'#60c890';
+    return `<div class="factor-row">
+      <span class="factor-name">${f.label}</span>
+      <div class="factor-bar-bg"><div class="factor-bar-fill" style="width:0%;background:${fc}" data-w="${pct}"></div></div>
+      <span class="factor-pts" style="color:${fc}">${f.pts}/${f.max}</span>
+    </div>`;
+  }).join('');
+
+  // Animate bars
+  setTimeout(() => {
+    document.querySelectorAll('.factor-bar-fill').forEach(el => {
+      el.style.width = el.getAttribute('data-w') + '%';
+    });
+  }, 50);
+
+  document.getElementById('result-factors').classList.add('show');
+  document.getElementById('result-cta').classList.add('show');
+
+  // Scroll result into view on mobile
+  if(window.innerWidth < 900) {
+    document.getElementById('result-card').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
 </script>
 </body>
 </html>
