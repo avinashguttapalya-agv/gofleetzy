@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleetzy — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0f0f0d; --ink2:#2a2a26; --stone:#7a7a72; --mist:#f6f5f0; --white:#fefefe;
+  --accent:#c8603a; --accent2:#e8845c; --accent-light:#f2ece7;
+  --border:#e5e3db; --sidebar:#13120f;
+  --green:#2e7d52; --green-bg:#e6f4ed;
+  --yellow:#b8920e; --yellow-bg:#f7f0d8;
+  --red:#a82828; --red-bg:#f7e4e4;
+  --r:12px;
+}
+body{font-family:'Outfit',sans-serif;background:var(--mist);color:var(--ink);min-height:100vh;font-size:15px}
+
+/* AUTH SCREEN */
+#auth-screen{display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--mist);position:relative}
+#auth-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 0%,rgba(200,96,58,.07),transparent)}
+.auth-box{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:44px;width:420px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.06);position:relative;z-index:1}
+.auth-logo{font-family:'Instrument Serif',serif;font-size:26px;color:var(--ink);margin-bottom:6px}
+.auth-sub{font-size:14px;color:var(--stone);margin-bottom:32px}
+.auth-tabs{display:flex;background:var(--mist);border-radius:10px;padding:4px;margin-bottom:28px}
+.auth-tab{flex:1;padding:9px;text-align:center;font-size:14px;font-weight:600;border-radius:7px;cursor:pointer;border:none;background:none;font-family:inherit;color:var(--stone);transition:all .15s}
+.auth-tab.active{background:var(--white);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.form-label{font-size:12px;font-weight:600;color:var(--stone);text-transform:uppercase;letter-spacing:.4px}
+.form-input,.form-select{padding:11px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--white);outline:none;transition:border-color .15s;width:100%}
+.form-input:focus,.form-select:focus{border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit;text-decoration:none}
+.btn-primary{background:var(--accent);color:white;width:100%}
+.btn-primary:hover{background:#b35432}
+.btn-ghost{background:var(--white);color:var(--ink);border:1.5px solid var(--border)}
+.btn-ghost:hover{background:var(--mist)}
+.btn-sm{padding:7px 14px;font-size:13px;border-radius:7px}
+.auth-divider{text-align:center;font-size:12px;color:var(--stone);margin:16px 0;position:relative}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--border)}
+.auth-divider::before{left:0} .auth-divider::after{right:0}
+.auth-footer{margin-top:18px;text-align:center;font-size:13px;color:var(--stone)}
+.auth-footer a{color:var(--accent);text-decoration:none;font-weight:600}
+.plan-badge{background:var(--accent-light);color:var(--accent);font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:12px}
+
+/* APP SHELL */
+#app-screen{display:none;grid-template-columns:260px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:var(--sidebar);display:flex;flex-direction:column;padding:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-top{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+.s-logo{font-family:'Instrument Serif',serif;font-size:20px;color:white}
+.s-org{font-size:12px;color:rgba(255,255,255,.35);margin-top:3px;font-weight:400}
+.sidebar-nav{padding:16px 12px;flex:1}
+.nav-section-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin-bottom:6px;margin-top:16px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px;color:rgba(255,255,255,.5);transition:all .15s;border:none;background:none;text-align:left;width:100%;font-family:inherit;font-weight:500}
+.nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+.nav-item.active{background:rgba(200,96,58,.18);color:var(--accent2)}
+.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sidebar-bottom{padding:16px 12px;border-top:1px solid rgba(255,255,255,.06)}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:9px;cursor:pointer;transition:background .15s}
+.user-card:hover{background:rgba(255,255,255,.06)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0}
+.user-name{font-size:13px;color:rgba(255,255,255,.75);font-weight:500}
+.user-role{font-size:11px;color:rgba(255,255,255,.3)}
+.user-signout{margin-left:auto;font-size:11px;color:rgba(255,255,255,.25);cursor:pointer;padding:4px;border:none;background:none;font-family:inherit;transition:color .15s}
+.user-signout:hover{color:rgba(255,255,255,.6)}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-shrink:0}
+.page-title{font-size:16px;font-weight:700;color:var(--ink)}
+.topbar-right{display:flex;gap:10px;align-items:center}
+.content{padding:28px;display:flex;flex-direction:column;gap:24px;flex:1}
+
+/* CARDS */
+.card{background:var(--white);border-radius:var(--r);border:1px solid var(--border)}
+.card-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.card-title{font-size:14px;font-weight:700;color:var(--ink)}
+.card-body{padding:22px}
+.card-sub{font-size:12px;color:var(--stone)}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.metric{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px}
+.metric-label{font-size:11px;color:var(--stone);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.metric-value{font-family:'Instrument Serif',serif;font-size:32px;line-height:1;color:var(--ink)}
+.metric-sub{font-size:12px;color:var(--stone);margin-top:4px}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--stone);text-transform:uppercase;letter-spacing:.6px;background:var(--mist);border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--mist)}
+td{padding:12px 14px;font-size:14px;vertical-align:middle}
+.td-muted{color:var(--stone);font-size:13px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.pill-red{background:var(--red-bg);color:var(--red)} .pill-red .dot{background:var(--red)}
+.pill-yellow{background:var(--yellow-bg);color:var(--yellow)} .pill-yellow .dot{background:var(--yellow)}
+.pill-green{background:var(--green-bg);color:var(--green)} .pill-green .dot{background:var(--green)}
+
+.score-wrap{display:flex;align-items:center;gap:8px}
+.score-bg{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;min-width:50px}
+.score-fill{height:100%;border-radius:3px}
+.score-num{font-size:13px;font-weight:700;min-width:26px;text-align:right}
+
+/* RECS */
+.rec-list{display:flex;flex-direction:column;gap:10px}
+.rec-item{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:10px;border:1px solid var(--border);transition:border-color .15s}
+.rec-item:hover{border-color:var(--accent)}
+.rec-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.rec-body{flex:1}
+.rec-name{font-weight:700;font-size:14px;margin-bottom:2px}
+.rec-detail{font-size:12px;color:var(--stone)}
+.rec-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tag{font-size:11px;padding:2px 7px;border-radius:8px;font-weight:500}
+.tag-red{background:var(--red-bg);color:var(--red)}
+.tag-yellow{background:var(--yellow-bg);color:var(--yellow)}
+.tag-gray{background:var(--mist);color:var(--stone);border:1px solid var(--border)}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.section-rule{font-size:12px;font-weight:700;color:var(--stone);text-transform:uppercase;letter-spacing:.5px;padding-top:4px;border-top:1px solid var(--border);grid-column:1/-1;margin-top:4px}
+.form-hint{font-size:10px;color:#aaa;font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px}
+
+/* TEAM */
+.team-table th{padding:10px 14px}
+.member-row{display:flex;align-items:center;gap:12px}
+.m-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0;background:var(--accent)}
+.role-badge{font-size:11px;padding:2px 9px;border-radius:10px;font-weight:600}
+.role-admin{background:var(--accent-light);color:var(--accent)}
+.role-manager{background:var(--green-bg);color:var(--green)}
+.role-viewer{background:var(--mist);color:var(--stone);border:1px solid var(--border)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(15,15,13,.4);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--white);border-radius:16px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.14)}
+.modal-hd{padding:22px 26px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--white);z-index:1}
+.modal-title{font-family:'Instrument Serif',serif;font-size:20px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--stone);padding:4px;line-height:1}
+.modal-body{padding:22px 26px;display:flex;flex-direction:column;gap:14px}
+.modal-ft{padding:14px 26px 22px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border)}
+
+/* BREAKDOWN */
+.bd-total{text-align:center;padding:20px 0 28px}
+.bd-score{font-family:'Instrument Serif',serif;font-size:60px;line-height:1}
+.bd-label{font-size:13px;color:var(--stone);margin-top:4px}
+.bd-table{width:100%;border-collapse:collapse;font-size:13px}
+.bd-table td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.bd-table tr:last-child td{border:none}
+.bd-factor{color:var(--stone)}
+.bd-pts{font-weight:700;text-align:right}
+.bd-bar-cell{width:90px}
+.bd-bar-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.bd-bar-fill{height:100%;border-radius:2px}
+.new-chip{font-size:9px;background:var(--accent-light);color:var(--accent);padding:1px 5px;border-radius:6px;margin-left:5px;vertical-align:middle;font-weight:700}
+
+.info-box{background:var(--accent-light);border-radius:9px;padding:12px 16px;font-size:13px;color:var(--accent);line-height:1.5}
+.success-box{background:var(--green-bg);border-radius:9px;padding:12px 16px;font-size:13px;color:var(--green)}
+.empty{text-align:center;padding:48px 20px;color:var(--stone)}
+.empty-icon{font-size:32px;margin-bottom:10px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--sidebar);color:white;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;z-index:300;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.setting-card{background:var(--mist);border-radius:10px;padding:18px}
+.setting-card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.setting-card-desc{font-size:12px;color:var(--stone);margin-bottom:12px;line-height:1.5}
+
+@media(max-width:860px){
+  #app-screen{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .metrics{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr 1fr}
+  .settings-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ AUTH SCREEN ═══════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">Fleetzy</div>
+    <div class="auth-sub">Fleet replacement intelligence platform</div>
+    <div id="auth-plan-badge" style="display:none"></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+
+    <!-- SIGN IN -->
+    <div id="tab-signin">
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="si-email" type="email" placeholder="you@company.com" /></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="si-password" type="password" placeholder="••••••••" /></div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="doSignIn()">Sign In →</button>
+      <div class="auth-divider" style="margin-top:16px">or try demo</div>
+      <button class="btn btn-ghost" onclick="demoLogin()">Load Demo Account</button>
+    </div>
+
+    <!-- SIGN UP -->
+    <div id="tab-signup" style="display:none">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="su-name" placeholder="Jane Smith" /></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="su-email" type="email" placeholder="you@company.com" /></div>
+      <div class="form-group"><label class="form-label">Company / Organisation</label><input class="form-input" id="su-org" placeholder="Acme Fleet Ltd." /></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="su-password" type="password" placeholder="Min. 8 characters" /></div>
+      <div class="form-group"><label class="form-label">Plan</label>
+        <select class="form-select" id="su-plan">
+          <option value="trial">14-Day Free Trial (no card needed)</option>
+          <option value="starter">Starter — $49/mo (up to 20 vehicles)</option>
+          <option value="pro">Professional — $149/mo (up to 200 vehicles)</option>
+          <option value="enterprise">Enterprise — $399/mo (unlimited)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="doSignUp()">Create Account →</button>
+      <div class="auth-footer">Already have an account? <a href="#" onclick="switchAuthTab('signin');return false">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP SCREEN ═══════════════════ -->
+<div id="app-screen">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="s-logo">Fleetzy</div>
+      <div class="s-org" id="s-org-name">Loading...</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <button class="nav-item active" onclick="nav('dashboard')"><span class="nav-icon">◈</span> Dashboard</button>
+      <button class="nav-item" onclick="nav('fleet')"><span class="nav-icon">⊟</span> Fleet Overview</button>
+      <button class="nav-item" onclick="nav('add')"><span class="nav-icon">＋</span> Add Vehicle</button>
+      <button class="nav-item" onclick="nav('recs')"><span class="nav-icon">◎</span> Recommendations</button>
+      <div class="nav-section-label">Account</div>
+      <button class="nav-item" onclick="nav('team')"><span class="nav-icon">👥</span> Team</button>
+      <button class="nav-item" onclick="nav('reports')"><span class="nav-icon">📄</span> Export Reports</button>
+      <button class="nav-item" onclick="nav('settings')"><span class="nav-icon">⚙</span> Settings</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-card">
+        <div class="user-avatar" id="u-avatar">?</div>
+        <div><div class="user-name" id="u-name">—</div><div class="user-role" id="u-role">—</div></div>
+        <button class="user-signout" onclick="signOut()" title="Sign out">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <span id="plan-tag" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:var(--accent-light);color:var(--accent)"></span>
+        <button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add Vehicle</button>
+        <button class="btn btn-primary btn-sm" onclick="exportPDF()">📄 Export PDF</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="sec-dashboard">
+        <div class="metrics" id="metrics-row">
+          <div class="metric"><div class="metric-label">Total Fleet</div><div class="metric-value" id="m-total">0</div><div class="metric-sub">vehicles tracked</div></div>
+          <div class="metric"><div class="metric-label">Avg Score</div><div class="metric-value" id="m-avg">—</div><div class="metric-sub">replacement urgency</div></div>
+          <div class="metric"><div class="metric-label">Avg Age</div><div class="metric-value" id="m-age">—</div><div class="metric-sub">years old</div></div>
+          <div class="metric"><div class="metric-label">Need Action</div><div class="metric-value" id="m-action" style="color:var(--accent)">0</div><div class="metric-sub">flagged vehicles</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Top Replacement Priorities</div><div class="card-sub">7-factor research-backed scoring</div></div>
+          <div class="card-body"><div class="rec-list" id="dash-recs"><div class="empty"><div class="empty-icon">🚗</div>Add vehicles to see recommendations</div></div></div>
+        </div>
+      </div>
+
+      <!-- FLEET TABLE -->
+      <div id="sec-fleet" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">All Vehicles</div><button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add</button></div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Vehicle</th><th>Year</th><th>Mileage</th><th>CPM</th><th>Downtime</th><th>Brand Rel.</th><th>Score</th><th>Status</th><th></th></tr></thead>
+                <tbody id="fleet-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADD VEHICLE -->
+      <div id="sec-add" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Add Vehicle</div><div class="card-sub">★ = new research-backed factors</div></div>
+          <div class="card-body">
+            <div class="info-box" style="margin-bottom:18px">Fill in as many fields as possible. The more data, the more accurate your replacement score.</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Make & Model</label><input class="form-input" id="f-model" placeholder="e.g. Toyota Corolla"/></div>
+              <div class="form-group"><label class="form-label">Brand <span class="form-hint">(reliability lookup)</span></label>
+                <select class="form-select" id="f-brand">
+                  <option value="">Select brand</option>
+                  <option value="toyota">Toyota</option><option value="lexus">Lexus</option><option value="honda">Honda</option><option value="acura">Acura</option>
+                  <option value="mazda">Mazda</option><option value="subaru">Subaru</option><option value="hyundai">Hyundai</option><option value="kia">Kia</option>
+                  <option value="nissan">Nissan</option><option value="ford">Ford</option><option value="chevrolet">Chevrolet</option><option value="gmc">GMC</option>
+                  <option value="dodge">Dodge</option><option value="ram">RAM</option><option value="jeep">Jeep</option><option value="bmw">BMW</option>
+                  <option value="mercedes">Mercedes-Benz</option><option value="audi">Audi</option><option value="volkswagen">Volkswagen</option>
+                  <option value="landrover">Land Rover</option><option value="fiat">Fiat</option><option value="alfa">Alfa Romeo</option><option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Fuel Type ★</label>
+                <select class="form-select" id="f-fueltype">
+                  <option value="">Select</option><option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
+                  <option value="diesel">Diesel</option><option value="phev">PHEV</option><option value="bev">Full Electric (BEV)</option>
+                </select>
+              </div>
+              <div class="section-rule">Usage & Age</div>
+              <div class="form-group"><label class="form-label">Year</label><input class="form-input" id="f-year" type="number" placeholder="e.g. 2018" min="1990" max="2026"/></div>
+              <div class="form-group"><label class="form-label">Current Mileage (km)</label><input class="form-input" id="f-mileage" type="number" placeholder="e.g. 145000"/></div>
+              <div class="form-group"><label class="form-label">Annual Usage (km/yr)</label><input class="form-input" id="f-annual" type="number" placeholder="e.g. 20000"/></div>
+              <div class="section-rule">Cost Data ★</div>
+              <div class="form-group"><label class="form-label">Annual Maintenance ($)</label><input class="form-input" id="f-maint" type="number" placeholder="e.g. 2500"/></div>
+              <div class="form-group"><label class="form-label">Vehicle Value ($) ★</label><input class="form-input" id="f-value" type="number" placeholder="e.g. 15000"/></div>
+              <div class="form-group"><label class="form-label">Annual Fuel Cost ($) ★</label><input class="form-input" id="f-fuelcost" type="number" placeholder="e.g. 3000"/></div>
+              <div class="section-rule">Reliability ★</div>
+              <div class="form-group"><label class="form-label">Repairs (last 12mo)</label><input class="form-input" id="f-repairs" type="number" placeholder="e.g. 3"/></div>
+              <div class="form-group"><label class="form-label">Downtime Days ★</label><input class="form-input" id="f-downtime" type="number" placeholder="e.g. 8"/></div>
+              <div class="form-group"><label class="form-label">Condition</label>
+                <select class="form-select" id="f-condition">
+                  <option value="">Select</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option>
+                </select>
+              </div>
+              <div class="section-rule">Organisation</div>
+              <div class="form-group"><label class="form-label">Department / Driver</label><input class="form-input" id="f-dept" placeholder="e.g. Sales Team A"/></div>
+              <div class="form-group"><label class="form-label">Expected Annual km ★</label><input class="form-input" id="f-expected" type="number" placeholder="e.g. 25000 (target)"/></div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn btn-primary" style="width:auto" onclick="addVehicle()">Save Vehicle</button>
+              <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECOMMENDATIONS -->
+      <div id="sec-recs" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Replacement Recommendations</div><div class="card-sub">Higher score = replace sooner · 65+ = critical</div></div>
+          <div class="card-body"><div class="rec-list" id="full-recs"></div></div>
+        </div>
+      </div>
+
+      <!-- TEAM -->
+      <div id="sec-team" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Team Members</div><button class="btn btn-primary btn-sm" onclick="openInviteModal()">＋ Invite Member</button></div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table class="team-table">
+                <thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+                <tbody id="team-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Plan & Limits</div></div>
+          <div class="card-body">
+            <div class="settings-grid">
+              <div class="setting-card">
+                <div class="setting-card-title">Current Plan</div>
+                <div class="setting-card-desc" id="plan-desc">Loading...</div>
+                <button class="btn btn-ghost btn-sm">Upgrade Plan</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-title">Usage</div>
+                <div class="setting-card-desc" id="usage-desc">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div id="sec-reports" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Export Reports</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
+            <div class="info-box">Reports are generated as PDF files. They include your fleet summary, full vehicle table with scores, and replacement recommendations.</div>
+            <div class="settings-grid">
+              <div class="setting-card">
+                <div class="setting-card-title">📊 Fleet Summary Report</div>
+                <div class="setting-card-desc">Full fleet overview with scores, status flags, and top replacement priorities. Ideal for management reviews.</div>
+                <button class="btn btn-primary btn-sm" style="margin-top:4px;width:auto" onclick="exportPDF('summary')">Export PDF →</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-title">🔴 Critical Vehicles Report</div>
+                <div class="setting-card-desc">Only vehicles scoring 65+ with full factor breakdowns. Ideal for board presentations and budget requests.</div>
+                <button class="btn btn-primary btn-sm" style="margin-top:4px;width:auto" onclick="exportPDF('critical')">Export PDF →</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-title">📋 Full Breakdown Report</div>
+                <div class="setting-card-desc">Every vehicle with full 7-factor score breakdown. Best for detailed audit trails and fleet reviews.</div>
+                <button class="btn btn-primary btn-sm" style="margin-top:4px;width:auto" onclick="exportPDF('full')">Export PDF →</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-title">📁 CSV Data Export</div>
+                <div class="setting-card-desc">Raw vehicle data with scores in CSV format. Use for further analysis in Excel or Google Sheets.</div>
+                <button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="exportCSV()">Export CSV →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="sec-settings" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Account Settings</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:18px">
+            <div class="form-group"><label class="form-label">Organisation Name</label><input class="form-input" id="set-org" placeholder="Your company name"/></div>
+            <div class="form-group"><label class="form-label">Your Name</label><input class="form-input" id="set-name" placeholder="Your full name"/></div>
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="set-email" type="email" placeholder="you@company.com"/></div>
+            <button class="btn btn-primary" style="width:auto" onclick="saveSettings()">Save Changes</button>
+            <div style="border-top:1px solid var(--border);padding-top:16px">
+              <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">Danger Zone</div>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red)" onclick="clearAllData()">Delete All Fleet Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /app -->
+
+<!-- BREAKDOWN MODAL -->
+<div class="overlay" id="modal-breakdown">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="bd-title">Score Breakdown</div><button class="modal-close" onclick="closeModal('modal-breakdown')">✕</button></div>
+    <div class="modal-body" id="bd-body"></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-breakdown')">Close</button></div>
+  </div>
+</div>
+
+<!-- INVITE MODAL -->
+<div class="overlay" id="modal-invite">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">Invite Team Member</div><button class="modal-close" onclick="closeModal('modal-invite')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="inv-name" placeholder="Jane Smith"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="inv-email" type="email" placeholder="jane@company.com"/></div>
+      <div class="form-group"><label class="form-label">Role</label>
+        <select class="form-select" id="inv-role">
+          <option value="manager">Manager — can add/edit vehicles</option>
+          <option value="viewer">Viewer — read only</option>
+          <option value="admin">Admin — full access</option>
+        </select>
+      </div>
+      <div class="info-box">In production, this sends an email invite. For this demo it adds them directly.</div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="inviteMember()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="overlay" id="modal-delete">
+  <div class="modal" style="width:380px">
+    <div class="modal-hd"><div class="modal-title">Remove Vehicle</div><button class="modal-close" onclick="closeModal('modal-delete')">✕</button></div>
+    <div class="modal-body"><p style="color:var(--stone);font-size:14px">Remove <strong id="del-name"></strong> from your fleet?</p></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-delete')">Cancel</button><button class="btn btn-primary" style="width:auto;background:var(--red)" onclick="confirmDelete()">Remove</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════ DATA LAYER ═══════════
+const CY = new Date().getFullYear();
+
+const BRAND_RELIABILITY = {
+  toyota:0,lexus:0,honda:0,acura:0,mazda:1,subaru:1,
+  hyundai:2,kia:2,nissan:3,volkswagen:3,ford:4,
+  chevrolet:6,gmc:6,dodge:6,ram:5,jeep:7,
+  bmw:4,mercedes:4,audi:5,landrover:8,fiat:8,alfa:8,other:3
+};
+const BRAND_LABEL = {toyota:'Toyota',lexus:'Lexus',honda:'Honda',acura:'Acura',mazda:'Mazda',subaru:'Subaru',hyundai:'Hyundai',kia:'Kia',nissan:'Nissan',ford:'Ford',chevrolet:'Chevrolet',gmc:'GMC',dodge:'Dodge',ram:'RAM',jeep:'Jeep',bmw:'BMW',mercedes:'Mercedes',audi:'Audi',volkswagen:'VW',landrover:'Land Rover',fiat:'Fiat',alfa:'Alfa Romeo',other:'Other'};
+const BRAND_REL_LABEL = {0:'Excellent',1:'Very Good',2:'Good',3:'Average',4:'Below Avg',5:'Below Avg',6:'Poor',7:'Poor',8:'Very Poor',10:'Very Poor'};
+const PLAN_LIMITS = {trial:{vehicles:10,members:2,label:'Free Trial'},starter:{vehicles:20,members:2,label:'Starter'},pro:{vehicles:200,members:10,label:'Professional'},enterprise:{vehicles:Infinity,members:Infinity,label:'Enterprise'}};
+
+// Session state
+let session = null;
+
+function getStore(key) { try { return JSON.parse(localStorage.getItem(key)||'null'); } catch(e) { return null; } }
+function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+function getAccounts() { return getStore('fy_accounts') || {}; }
+function saveAccounts(a) { setStore('fy_accounts', a); }
+function getFleet() { return session ? (getStore('fy_fleet_'+session.accountId)||[]) : []; }
+function saveFleet(f) { if(session) setStore('fy_fleet_'+session.accountId, f); }
+function getTeam() { return session ? (getStore('fy_team_'+session.accountId)||[]) : []; }
+function saveTeam(t) { if(session) setStore('fy_team_'+session.accountId, t); }
+
+// ═══════════ AUTH ═══════════
+function switchAuthTab(tab) {
+  document.getElementById('tab-signin').style.display = tab==='signin' ? '' : 'none';
+  document.getElementById('tab-signup').style.display = tab==='signup' ? '' : 'none';
+  document.querySelectorAll('.auth-tab').forEach((el,i) => el.classList.toggle('active', (i===0&&tab==='signin')||(i===1&&tab==='signup')));
+}
+
+function doSignIn() {
+  const email = document.getElementById('si-email').value.trim().toLowerCase();
+  const pass = document.getElementById('si-password').value;
+  if (!email||!pass) { toast('Please enter email and password.'); return; }
+  const accounts = getAccounts();
+  const acct = Object.values(accounts).find(a => a.email === email && a.password === pass);
+  if (!acct) { toast('Invalid email or password.'); return; }
+  session = { accountId: acct.id, email: acct.email, name: acct.name, org: acct.org, plan: acct.plan, role: 'admin' };
+  setStore('fy_session', session);
+  launchApp();
+}
+
+function doSignUp() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim().toLowerCase();
+  const org = document.getElementById('su-org').value.trim();
+  const pass = document.getElementById('su-password').value;
+  const plan = document.getElementById('su-plan').value;
+  if (!name||!email||!org||!pass) { toast('Please fill in all fields.'); return; }
+  if (pass.length < 8) { toast('Password must be at least 8 characters.'); return; }
+  const accounts = getAccounts();
+  if (Object.values(accounts).find(a => a.email===email)) { toast('Email already registered.'); return; }
+  const id = 'acct_' + Date.now();
+  accounts[id] = { id, name, email, password: pass, org, plan };
+  saveAccounts(accounts);
+  session = { accountId: id, email, name, org, plan, role: 'admin' };
+  setStore('fy_session', session);
+  // Seed team with the founder
+  saveTeam([{ id: Date.now(), name, email, role: 'admin', joined: new Date().toLocaleDateString() }]);
+  launchApp();
+  toast('Welcome to Fleetzy!');
+}
+
+function demoLogin() {
+  const accounts = getAccounts();
+  const demoId = 'demo_account';
+  if (!accounts[demoId]) {
+    accounts[demoId] = { id: demoId, name: 'Demo Manager', email: 'demo@gofleetzy.com', password: 'demo1234', org: 'Demo Fleet Co.', plan: 'pro' };
+    saveAccounts(accounts);
+    setStore('fy_team_'+demoId, [
+      { id:1, name:'Demo Manager', email:'demo@gofleetzy.com', role:'admin', joined:'1 Jan 2026' },
+      { id:2, name:'Sarah Field', email:'sarah@democo.com', role:'manager', joined:'10 Feb 2026' },
+      { id:3, name:'Tom Viewer', email:'tom@democo.com', role:'viewer', joined:'15 Mar 2026' },
+    ]);
+    setStore('fy_fleet_'+demoId, [
+      {id:1,model:'Ford Transit 2.0',year:'2014',mileage:'235000',brand:'ford',fueltype:'diesel',annual:'38000',maint:'5200',value:'8000',fuelcost:'4800',repairs:'5',downtime:'18',condition:'fair',dept:'Logistics',expected:'40000'},
+      {id:2,model:'Toyota Camry',year:'2019',mileage:'88000',brand:'toyota',fueltype:'gasoline',annual:'22000',maint:'1200',value:'22000',fuelcost:'2200',repairs:'1',downtime:'2',condition:'good',dept:'Sales',expected:'25000'},
+      {id:3,model:'Honda CR-V',year:'2017',mileage:'145000',brand:'honda',fueltype:'gasoline',annual:'28000',maint:'2800',value:'14000',fuelcost:'3100',repairs:'3',downtime:'7',condition:'fair',dept:'Field Service',expected:'30000'},
+      {id:4,model:'Nissan Navara',year:'2021',mileage:'42000',brand:'nissan',fueltype:'diesel',annual:'18000',maint:'800',value:'32000',fuelcost:'2400',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'20000'},
+      {id:5,model:'Jeep Wrangler',year:'2016',mileage:'178000',brand:'jeep',fueltype:'gasoline',annual:'12000',maint:'4500',value:'11000',fuelcost:'2800',repairs:'4',downtime:'11',condition:'fair',dept:'Ops',expected:'22000'},
+    ]);
+  }
+  document.getElementById('si-email').value = 'demo@gofleetzy.com';
+  document.getElementById('si-password').value = 'demo1234';
+  doSignIn();
+}
+
+function signOut() {
+  session = null;
+  localStorage.removeItem('fy_session');
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+// ═══════════ SCORING ENGINE ═══════════
+function score(v) {
+  let total = 0; const bd = [];
+  const age = CY - parseInt(v.year||CY);
+  let agePts = age<=3?age*1:age<=6?3+(age-3)*2:age<=9?9+(age-6)*3.5:age<=12?19.5+(age-9)*.5:20;
+  agePts = Math.round(Math.min(agePts,20));
+  bd.push({label:'TCO Crossover Age',val:`${age} yrs`,pts:agePts,max:20});
+  total+=agePts;
+
+  const km = parseInt(v.mileage)||0;
+  const kmPts = Math.round(Math.min(km/12500,20));
+  bd.push({label:'Mileage',val:`${km.toLocaleString()} km`,pts:kmPts,max:20});
+  total+=kmPts;
+
+  const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0, fuelcost=parseInt(v.fuelcost)||0;
+  let cpmPts=0,cpmVal='—';
+  if(annual>0&&(maint+fuelcost)>0){
+    const cpm=(maint+fuelcost)/annual; cpmVal='$'+cpm.toFixed(2)+'/km';
+    if(cpm<=.17)cpmPts=0;
+    else if(cpm<=.25)cpmPts=Math.round((cpm-.17)/.08*8);
+    else if(cpm<=.40)cpmPts=Math.round(8+(cpm-.25)/.15*8);
+    else cpmPts=Math.round(16+Math.min((cpm-.40)/.20*4,4));
+    cpmPts=Math.min(cpmPts,20);
+  }
+  bd.push({label:'Cost Per km (CPM)',val:cpmVal,pts:cpmPts,max:20,isnew:true});
+  total+=cpmPts;
+
+  const value=parseInt(v.value)||0;
+  let rtvPts=0,rtvVal='—';
+  if(value>0&&maint>0){
+    const r=maint/value; rtvVal=Math.round(r*100)+'% of value';
+    if(r<=.10)rtvPts=0;
+    else if(r<=.30)rtvPts=Math.round((r-.10)/.20*7);
+    else if(r<=.50)rtvPts=Math.round(7+(r-.30)/.20*8);
+    else rtvPts=15;
+    rtvPts=Math.min(rtvPts,15);
+  }
+  bd.push({label:'Repair-to-Value Ratio',val:rtvVal,pts:rtvPts,max:15,isnew:true});
+  total+=rtvPts;
+
+  const dt=parseInt(v.downtime)||0;
+  let dtPts=dt<=2?0:dt<=5?Math.round((dt-2)/3*5):dt<=15?Math.round(5+(dt-5)/10*10):15;
+  dtPts=Math.min(dtPts,15);
+  bd.push({label:'Downtime Days',val:`${dt} days/yr`,pts:dtPts,max:15,isnew:true});
+  total+=dtPts;
+
+  const brand=v.brand||'other';
+  const brandPts=Math.min(BRAND_RELIABILITY[brand]??3,10);
+  bd.push({label:'Brand Reliability',val:`${BRAND_LABEL[brand]||'—'} (${BRAND_REL_LABEL[brandPts]||'Avg'})`,pts:brandPts,max:10,isnew:true});
+  total+=brandPts;
+
+  const fuelMap={gasoline:0,hybrid:0,diesel:1,phev:3,bev:5,'':0};
+  const condMap={excellent:-5,good:0,fair:3,poor:5,'':0};
+  const f7=Math.max(0,Math.min((fuelMap[v.fueltype||'']||0)+(condMap[v.condition||'']||0),10));
+  const ftLabel={gasoline:'Gasoline',hybrid:'Hybrid',diesel:'Diesel',phev:'PHEV',bev:'BEV','':'—'};
+  bd.push({label:'Fuel Type + Condition',val:`${ftLabel[v.fueltype||'']} / ${v.condition||'—'}`,pts:f7,max:10,isnew:true});
+  total+=f7;
+
+  const expected=parseInt(v.expected)||0;
+  const underutil=expected>0&&annual>0&&annual<expected*.5;
+
+  return {score:Math.min(Math.round(total),100),bd,underutil,cpmVal};
+}
+
+function status(s){return s>=65?'critical':s>=40?'watch':'ok'}
+function statusLabel(s){return s>=65?'Replace Now':s>=40?'Watch':'Good'}
+function statusColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--green)'}
+function pillClass(s){return s>=65?'pill-red':s>=40?'pill-yellow':'pill-green'}
+function fillColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--green)'}
+
+// ═══════════ APP NAV ═══════════
+let activeSection = 'dashboard';
+function nav(sec) {
+  ['dashboard','fleet','add','recs','team','reports','settings'].forEach(s => {
+    const el = document.getElementById('sec-'+s);
+    if(el) el.style.display = s===sec ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('onclick')?.includes("'"+sec+"'"));
+  });
+  const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',team:'Team & Plan',reports:'Export Reports',settings:'Settings'};
+  document.getElementById('page-title').textContent = titles[sec]||sec;
+  activeSection = sec;
+  if(sec==='fleet') renderTable();
+  if(sec==='recs') renderRecs('full-recs', null);
+  if(sec==='dashboard') renderDashboard();
+  if(sec==='team') renderTeam();
+  if(sec==='settings') loadSettings();
+}
+
+// ═══════════ RENDER ═══════════
+function renderDashboard() {
+  const fleet = getFleet();
+  const scored = fleet.map(v => ({v,...score(v)}));
+  const critical = scored.filter(x=>x.score>=65).length;
+  const watch = scored.filter(x=>x.score>=40&&x.score<65).length;
+  const avg = fleet.length ? Math.round(scored.reduce((a,x)=>a+x.score,0)/fleet.length) : null;
+  const avgAge = fleet.length ? (fleet.reduce((a,v)=>a+(CY-parseInt(v.year)),0)/fleet.length).toFixed(1) : null;
+  document.getElementById('m-total').textContent = fleet.length;
+  const avgEl = document.getElementById('m-avg');
+  avgEl.textContent = avg ?? '—';
+  avgEl.style.color = avg>=65?'var(--red)':avg>=40?'var(--yellow)':'var(--green)';
+  document.getElementById('m-age').textContent = avgAge ?? '—';
+  document.getElementById('m-action').textContent = critical+watch;
+  renderRecs('dash-recs', 5);
+}
+
+function renderRecs(containerId, maxCount) {
+  const el = document.getElementById(containerId);
+  const fleet = getFleet();
+  if(!fleet.length) { el.innerHTML='<div class="empty"><div class="empty-icon">🚗</div>Add vehicles to see recommendations</div>'; return; }
+  const scored = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
+  const items = maxCount ? scored.slice(0,maxCount) : scored;
+  const icons = {critical:'🔴',watch:'🟡',ok:'🟢'};
+  const iconBg = {critical:'var(--red-bg)',watch:'var(--yellow-bg)',ok:'var(--green-bg)'};
+  el.innerHTML = items.map(({v,score:s,bd,underutil}) => {
+    const st = status(s);
+    const hotTags = bd.filter(f=>f.pts>=f.max*.6&&f.pts>0).map(f=>{
+      if(f.label.includes('Age')) return `<span class="tag tag-red">${CY-parseInt(v.year)} yr old</span>`;
+      if(f.label.includes('Mileage')) return `<span class="tag tag-red">${parseInt(v.mileage).toLocaleString()} km</span>`;
+      if(f.label.includes('CPM')) return `<span class="tag tag-red">High CPM</span>`;
+      if(f.label.includes('Repair-to-Value')) return `<span class="tag tag-red">High repair/value</span>`;
+      if(f.label.includes('Downtime')) return `<span class="tag tag-yellow">${v.downtime} downtime days</span>`;
+      if(f.label.includes('Brand')) return `<span class="tag tag-yellow">Low reliability brand</span>`;
+      return `<span class="tag tag-gray">${f.label}</span>`;
+    });
+    if(underutil) hotTags.push('<span class="tag tag-yellow">⚠ Underutilized</span>');
+    if(!hotTags.length) hotTags.push('<span class="tag tag-gray">Routine review</span>');
+    return `<div class="rec-item">
+      <div class="rec-icon" style="background:${iconBg[st]}">${icons[st]}</div>
+      <div class="rec-body">
+        <div class="rec-name">${v.model} (${v.year})${v.dept?` <span style="font-weight:400;font-size:12px;color:var(--stone)">· ${v.dept}</span>`:''}</div>
+        <div class="rec-detail">Score ${s}/100</div>
+        <div class="rec-tags">${hotTags.join('')}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="showBreakdown(${v.id})">Breakdown</button>
+    </div>`;
+  }).join('');
+}
+
+function renderTable() {
+  const tbody = document.getElementById('fleet-tbody');
+  const fleet = getFleet();
+  if(!fleet.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--stone)">No vehicles yet.</td></tr>';return;}
+  const scored = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
+  tbody.innerHTML = scored.map(({v,score:s,underutil,cpmVal}) => {
+    const pc=pillClass(s),fc=fillColor(s),brPts=BRAND_RELIABILITY[v.brand]??3;
+    return `<tr>
+      <td><strong>${v.model}</strong>${v.dept?`<div class="td-muted">${v.dept}</div>`:''}${underutil?`<div style="font-size:11px;color:var(--yellow);font-weight:600">⚠ Underutilized</div>`:''}</td>
+      <td>${v.year}</td>
+      <td>${parseInt(v.mileage).toLocaleString()}</td>
+      <td class="td-muted">${cpmVal}</td>
+      <td class="td-muted">${v.downtime?v.downtime+' days':'—'}</td>
+      <td style="font-size:12px">${BRAND_LABEL[v.brand]||'—'}<br><span style="color:${brPts<=2?'var(--green)':brPts<=4?'var(--stone)':'var(--red)'}">${BRAND_REL_LABEL[brPts]||'Avg'}</span></td>
+      <td><div class="score-wrap"><div class="score-bg"><div class="score-fill" style="width:${s}%;background:${fc}"></div></div><span class="score-num" style="color:${fc}">${s}</span></div></td>
+      <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
+      <td style="display:flex;gap:5px;padding:12px 8px">
+        <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Breakdown">⁉</button>
+        <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTeam() {
+  const team = getTeam();
+  const plan = session?.plan||'trial';
+  const limits = PLAN_LIMITS[plan];
+  document.getElementById('plan-desc').textContent = `${limits.label} plan · Up to ${limits.vehicles===Infinity?'unlimited':limits.vehicles} vehicles, ${limits.members===Infinity?'unlimited':limits.members} team members`;
+  document.getElementById('usage-desc').textContent = `${getFleet().length} vehicles · ${team.length} team members`;
+  const tbody = document.getElementById('team-tbody');
+  if(!team.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--stone)">No team members yet.</td></tr>';return;}
+  const roleClass={admin:'role-admin',manager:'role-manager',viewer:'role-viewer'};
+  tbody.innerHTML = team.map(m=>`<tr>
+    <td><div class="member-row"><div class="m-avatar">${m.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div><strong>${m.name}</strong></div></td>
+    <td class="td-muted">${m.email}</td>
+    <td><span class="role-badge ${roleClass[m.role]||'role-viewer'}">${m.role.charAt(0).toUpperCase()+m.role.slice(1)}</span></td>
+    <td class="td-muted">${m.joined}</td>
+    <td>${m.email===session.email?'<span style="font-size:12px;color:var(--stone)">You</span>':`<button onclick="removeMember(${m.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:13px">Remove</button>`}</td>
+  </tr>`).join('');
+}
+
+// ═══════════ VEHICLE ACTIONS ═══════════
+let deleteId = null;
+function addVehicle() {
+  const model=document.getElementById('f-model').value.trim();
+  const year=document.getElementById('f-year').value;
+  const mileage=document.getElementById('f-mileage').value;
+  if(!model||!year||!mileage){toast('Please fill in Make/Model, Year, and Mileage.');return;}
+  const plan=session?.plan||'trial';
+  const fleet=getFleet();
+  if(fleet.length>=PLAN_LIMITS[plan].vehicles){toast(`Plan limit: max ${PLAN_LIMITS[plan].vehicles} vehicles. Upgrade to add more.`);return;}
+  fleet.push({id:Date.now(),model,year,mileage,
+    brand:document.getElementById('f-brand').value,
+    fueltype:document.getElementById('f-fueltype').value,
+    annual:document.getElementById('f-annual').value,
+    maint:document.getElementById('f-maint').value,
+    value:document.getElementById('f-value').value,
+    fuelcost:document.getElementById('f-fuelcost').value,
+    repairs:document.getElementById('f-repairs').value,
+    downtime:document.getElementById('f-downtime').value,
+    condition:document.getElementById('f-condition').value,
+    dept:document.getElementById('f-dept').value.trim(),
+    expected:document.getElementById('f-expected').value,
+  });
+  saveFleet(fleet);clearForm();toast(`${model} added.`);nav('fleet');
+}
+function clearForm(){['f-model','f-year','f-mileage','f-annual','f-maint','f-value','f-fuelcost','f-repairs','f-downtime','f-dept','f-expected'].forEach(id=>document.getElementById(id).value='');['f-brand','f-fueltype','f-condition'].forEach(id=>document.getElementById(id).value='');}
+function delVehicle(id){const v=getFleet().find(x=>x.id===id);if(!v)return;deleteId=id;document.getElementById('del-name').textContent=v.model;openModal('modal-delete');}
+function confirmDelete(){let f=getFleet();f=f.filter(x=>x.id!==deleteId);saveFleet(f);closeModal('modal-delete');toast('Vehicle removed.');renderTable();}
+
+// ═══════════ BREAKDOWN MODAL ═══════════
+function showBreakdown(id) {
+  const v=getFleet().find(x=>x.id===id);if(!v)return;
+  const {score:s,bd,underutil}=score(v);
+  const st=status(s);const sc=statusColor(s);
+  document.getElementById('bd-title').textContent=`Score Breakdown — ${v.model}`;
+  let html=`<div class="bd-total"><div class="bd-score" style="color:${sc}">${s}</div><div class="bd-label">out of 100 · <strong style="color:${sc}">${statusLabel(s)}</strong></div></div>
+  <table class="bd-table">
+  <tr style="background:var(--mist)"><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Factor</td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Value</td><td class="bd-bar-cell"></td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone);text-align:right">Pts</td></tr>`;
+  bd.forEach(f=>{
+    const pct=Math.round(f.pts/f.max*100);
+    const bc=pct>=70?'var(--red)':pct>=40?'var(--yellow)':'var(--green)';
+    html+=`<tr>
+      <td class="bd-factor">${f.label}${f.isnew?'<span class="new-chip">NEW</span>':''}</td>
+      <td style="font-size:13px">${f.val}</td>
+      <td class="bd-bar-cell"><div class="bd-bar-bg"><div class="bd-bar-fill" style="width:${pct}%;background:${bc}"></div></div></td>
+      <td class="bd-pts" style="color:${bc}">${f.pts}/${f.max}</td>
+    </tr>`;
+  });
+  html+=`<tr style="background:var(--mist)"><td colspan="2" style="font-weight:700;font-size:14px">Total</td><td></td><td style="font-weight:700;font-size:15px;text-align:right;color:${sc}">${s}/100</td></tr></table>`;
+  if(underutil) html+=`<div class="info-box" style="margin-top:14px;background:var(--yellow-bg);color:var(--yellow)">⚠ <strong>Underutilized:</strong> This vehicle is below 50% of its expected annual km. Consider reassignment or disposal.</div>`;
+  document.getElementById('bd-body').innerHTML=html;
+  openModal('modal-breakdown');
+}
+
+// ═══════════ TEAM ═══════════
+function openInviteModal(){openModal('modal-invite');}
+function inviteMember(){
+  const name=document.getElementById('inv-name').value.trim();
+  const email=document.getElementById('inv-email').value.trim().toLowerCase();
+  const role=document.getElementById('inv-role').value;
+  if(!name||!email){toast('Enter name and email.');return;}
+  const plan=session?.plan||'trial';const team=getTeam();
+  if(team.length>=PLAN_LIMITS[plan].members){toast(`Plan limit: max ${PLAN_LIMITS[plan].members} members.`);return;}
+  if(team.find(m=>m.email===email)){toast('Already a team member.');return;}
+  team.push({id:Date.now(),name,email,role,joined:new Date().toLocaleDateString()});
+  saveTeam(team);closeModal('modal-invite');
+  document.getElementById('inv-name').value='';document.getElementById('inv-email').value='';
+  toast(`${name} added to team.`);renderTeam();
+}
+function removeMember(id){let t=getTeam();t=t.filter(m=>m.id!==id);saveTeam(t);toast('Member removed.');renderTeam();}
+
+// ═══════════ SETTINGS ═══════════
+function loadSettings(){
+  document.getElementById('set-org').value=session.org||'';
+  document.getElementById('set-name').value=session.name||'';
+  document.getElementById('set-email').value=session.email||'';
+}
+function saveSettings(){
+  const org=document.getElementById('set-org').value.trim();
+  const name=document.getElementById('set-name').value.trim();
+  const accounts=getAccounts();
+  if(accounts[session.accountId]){accounts[session.accountId].org=org;accounts[session.accountId].name=name;saveAccounts(accounts);}
+  session.org=org;session.name=name;setStore('fy_session',session);
+  document.getElementById('s-org-name').textContent=org;
+  document.getElementById('u-name').textContent=name;
+  toast('Settings saved.');
+}
+function clearAllData(){if(confirm('Delete ALL fleet data for this account? This cannot be undone.')){saveFleet([]);toast('All fleet data deleted.');renderDashboard();}}
+
+// ═══════════ PDF EXPORT ═══════════
+function exportPDF(type='summary') {
+  const fleet = getFleet();
+  if(!fleet.length){toast('No vehicles to export.');return;}
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210, margin=18, colW=W-margin*2, today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+
+  // Helpers
+  const scored = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
+  const filtered = type==='critical' ? scored.filter(x=>x.score>=65) : scored;
+
+  let y=margin;
+  // Header bar
+  doc.setFillColor(15,15,13); doc.rect(0,0,W,28,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(255,255,255);
+  doc.text('Fleetzy',margin,18);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,170);
+  const reportLabel=type==='critical'?'Critical Vehicles Report':type==='full'?'Full Breakdown Report':'Fleet Summary Report';
+  doc.text(reportLabel, W-margin, 18, {align:'right'});
+  y=40;
+
+  // Meta
+  doc.setTextColor(60,60,55); doc.setFontSize(9);
+  doc.text(`Organisation: ${session.org||'—'}  ·  Generated: ${today}  ·  Total vehicles: ${fleet.length}`, margin, y);
+  y+=10;
+
+  // Summary stats
+  const critical=scored.filter(x=>x.score>=65).length;
+  const watch=scored.filter(x=>x.score>=40&&x.score<65).length;
+  const ok=scored.filter(x=>x.score<40).length;
+  const avg=Math.round(scored.reduce((a,x)=>a+x.score,0)/scored.length);
+
+  // Stat boxes
+  const boxes=[
+    {label:'Total Fleet',val:fleet.length},
+    {label:'Avg Score',val:avg},
+    {label:'Critical',val:critical,c:[168,40,40]},
+    {label:'Watch',val:watch,c:[184,146,14]},
+    {label:'Good',val:ok,c:[46,125,82]},
+  ];
+  const bw=(colW)/boxes.length;
+  boxes.forEach((b,i)=>{
+    const bx=margin+i*bw;
+    doc.setFillColor(246,245,240); doc.roundedRect(bx,y,bw-3,20,2,2,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    if(b.c) doc.setTextColor(...b.c); else doc.setTextColor(15,15,13);
+    doc.text(String(b.val), bx+bw/2-1.5, y+12, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,112);
+    doc.text(b.label, bx+bw/2-1.5, y+18, {align:'center'});
+  });
+  y+=28;
+
+  // Table header
+  doc.setFillColor(30,30,28); doc.rect(margin,y,colW,7,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  const cols=[['Vehicle',55],['Year',16],['Mileage',22],['CPM',20],['Score',16],['Status',22],['Dept',22]];
+  let cx=margin;
+  cols.forEach(([label,w])=>{doc.text(label,cx+2,y+4.5);cx+=w;});
+  y+=7;
+
+  // Table rows
+  filtered.forEach(({v,score:s,cpmVal},i)=>{
+    if(y>270){doc.addPage();y=margin;} // new page if needed
+    const bg=i%2===0?[255,255,255]:[248,247,243];
+    doc.setFillColor(...bg); doc.rect(margin,y,colW,7,'F');
+    const sc=s>=65?[168,40,40]:s>=40?[184,146,14]:[46,125,82];
+    doc.setTextColor(30,30,28); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    cx=margin;
+    const rowData=[[v.model,55],[v.year,16],[(parseInt(v.mileage)).toLocaleString()+' km',22],[cpmVal,20]];
+    rowData.forEach(([text,w])=>{doc.text(String(text).slice(0,22),cx+2,y+4.5);cx+=w;});
+    doc.setTextColor(...sc); doc.setFont('helvetica','bold');
+    doc.text(String(s),cx+2,y+4.5); cx+=16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    // Status pill bg
+    doc.setFillColor(...sc,40); doc.roundedRect(cx+1,y+1,20,5,1.5,1.5,'F');
+    doc.setTextColor(...sc); doc.text(statusLabel(s),cx+2,y+4.5); cx+=22;
+    doc.setTextColor(120,120,112); doc.text((v.dept||'—').slice(0,18),cx+2,y+4.5);
+    y+=7;
+  });
+
+  // Full breakdown for 'full' type
+  if(type==='full'){
+    filtered.forEach(({v,score:s,bd})=>{
+      if(y>240){doc.addPage();y=margin;}
+      y+=8;
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(15,15,13);
+      doc.text(`${v.model} (${v.year}) — Score: ${s}/100`,margin,y); y+=6;
+      bd.forEach(f=>{
+        if(y>280){doc.addPage();y=margin;}
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80,80,75);
+        doc.text(`• ${f.label}: ${f.val} — ${f.pts}/${f.max} pts`,margin+4,y); y+=5;
+      });
+    });
+  }
+
+  // Footer
+  const totalPages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPages;p++){
+    doc.setPage(p); doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(160,160,152);
+    doc.text(`Fleetzy Fleet Report · ${today} · Page ${p} of ${totalPages}`,W/2,292,{align:'center'});
+    doc.line(margin,288,W-margin,288);
+  }
+
+  doc.save(`Fleetzy-${reportLabel.replace(/ /g,'-')}-${Date.now()}.pdf`);
+  toast('PDF exported successfully!');
+}
+
+function exportCSV(){
+  const fleet=getFleet();
+  if(!fleet.length){toast('No vehicles to export.');return;}
+  const headers=['Model','Year','Mileage','Brand','Fuel Type','Annual km','Maint Cost','Vehicle Value','Fuel Cost','Repairs','Downtime Days','Condition','Department','Expected km','Score','Status'];
+  const rows=fleet.map(v=>{const {score:s}=score(v);return [v.model,v.year,v.mileage,BRAND_LABEL[v.brand]||'—',v.fueltype||'—',v.annual,v.maint,v.value,v.fuelcost,v.repairs,v.downtime,v.condition,v.dept,v.expected,s,statusLabel(s)];});
+  const csv=[headers,...rows].map(r=>r.map(c=>'"'+(c||'')+('"')).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Fleetzy-Export.csv';a.click();
+  toast('CSV exported!');
+}
+
+// ═══════════ MODAL HELPERS ═══════════
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ═══════════ TOAST ═══════════
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+// ═══════════ LAUNCH ═══════════
+function launchApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-screen').style.display='grid';
+  // Populate UI from session
+  document.getElementById('s-org-name').textContent=session.org||'Your Organisation';
+  document.getElementById('u-name').textContent=session.name||session.email;
+  document.getElementById('u-role').textContent=(session.plan||'trial').charAt(0).toUpperCase()+(session.plan||'trial').slice(1)+' plan';
+  document.getElementById('u-avatar').textContent=(session.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('plan-tag').textContent=PLAN_LIMITS[session.plan||'trial'].label;
+  nav('dashboard');
+}
+
+// ═══════════ INIT ═══════════
+const saved = getStore('fy_session');
+const params = new URLSearchParams(window.location.search);
+if(params.get('signup')==='1'){
+  document.getElementById('auth-screen').style.display='flex';
+  switchAuthTab('signup');
+  const p=params.get('plan');if(p&&document.getElementById('su-plan'))document.getElementById('su-plan').value=p==='starter'?'starter':p==='enterprise'?'enterprise':'pro';
+  const planBadge=document.getElementById('auth-plan-badge');
+  if(p){planBadge.style.display='block';planBadge.innerHTML=`<div class="plan-badge">Starting: ${PLAN_LIMITS[p]?.label||'Trial'}</div>`;}
+} else if(saved){
+  session=saved;
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('si-email').value=session.email||'';
+  // Auto-login if session present
+  const accounts=getAccounts();
+  if(accounts[session.accountId]) launchApp();
+  else document.getElementById('auth-screen').style.display='flex';
+} else {
+  document.getElementById('auth-screen').style.display='flex';
+}
+</script>
+</body>
+</html>
