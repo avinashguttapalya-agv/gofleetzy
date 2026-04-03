@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Fleetzy</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:#fefefe;color:#1a1a18;line-height:1.7;font-size:15px}
+nav{padding:20px 5vw;border-bottom:1px solid #e5e3db;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Instrument Serif',serif;font-size:22px;text-decoration:none;color:#1a1a18}
+nav a.back{font-size:14px;color:#7a7a72;text-decoration:none}
+nav a.back:hover{color:#1a1a18}
+.content{max-width:720px;margin:0 auto;padding:60px 5vw 100px}
+h1{font-family:'Instrument Serif',serif;font-size:42px;margin-bottom:8px;letter-spacing:-.5px}
+.date{font-size:13px;color:#7a7a72;margin-bottom:48px}
+h2{font-size:18px;font-weight:700;margin:36px 0 12px}
+p{margin-bottom:16px;color:#2a2a26}
+ul{padding-left:24px;margin-bottom:16px}
+li{margin-bottom:8px;color:#2a2a26}
+a{color:#c8603a}
+.highlight{background:#f6f5f0;border-left:3px solid #c8603a;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:20px;font-size:14px}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">Fleetzy</a>
+  <a href="index.html" class="back">← Back to home</a>
+</nav>
+<div class="content">
+  <h1>Privacy Policy</h1>
+  <div class="date">Last updated: April 2026</div>
+
+  <div class="highlight">
+    <strong>Short version:</strong> We collect only what we need to run the service. We never sell your data. Your fleet data belongs entirely to you. We use Supabase (EU servers available) to store your data securely.
+  </div>
+
+  <h2>1. Who We Are</h2>
+  <p>Fleetzy ("we", "us", "our") operates the fleet vehicle replacement management platform at gofleetzy.com. For privacy enquiries, contact <a href="mailto:privacy@gofleetzy.com">privacy@gofleetzy.com</a>.</p>
+
+  <h2>2. What Data We Collect</h2>
+  <p><strong>Account data:</strong> your name, email address, company name, and chosen password (stored as a secure hash — we never see your actual password).</p>
+  <p><strong>Fleet data:</strong> vehicle details you enter including make, model, year, mileage, maintenance costs, repair records, and photos of invoices or plates that you upload for scanning.</p>
+  <p><strong>Usage data:</strong> pages visited, features used, and error logs. This is used to improve the product and diagnose technical issues. We do not build advertising profiles.</p>
+  <p><strong>Payment data:</strong> handled entirely by Stripe. We never see or store your credit card details.</p>
+
+  <h2>3. How We Use Your Data</h2>
+  <ul>
+    <li>To provide and operate the Fleetzy service</li>
+    <li>To send you service-related emails (account confirmation, invoices, service alerts you configure)</li>
+    <li>To process AI analysis requests — your fleet data is sent to Anthropic's API only when you explicitly trigger an AI analysis. It is not stored by Anthropic beyond the request.</li>
+    <li>To improve the product using anonymised, aggregated usage statistics</li>
+  </ul>
+  <p>We do not use your data for advertising. We do not sell your data to any third party.</p>
+
+  <h2>4. Invoice and Plate Photos</h2>
+  <p>When you upload a photo for invoice scanning or plate recognition, the image is sent directly from your browser to the AI provider (Anthropic) for processing. The image is not stored on our servers. Extracted data (repair cost, vehicle details) is stored in your account database.</p>
+
+  <h2>5. Data Storage and Security</h2>
+  <p>Your data is stored in Supabase, a SOC 2 Type II certified cloud database provider. Data is encrypted at rest (AES-256) and in transit (TLS 1.3). Each account's data is isolated by row-level security — no account can access another's data.</p>
+  <p>We use Supabase's EU region for European customers on request.</p>
+
+  <h2>6. Data Retention</h2>
+  <p>Your data is retained for as long as your account is active. If you cancel, your data is kept in read-only mode for 30 days, then permanently deleted. You can request immediate deletion by emailing <a href="mailto:privacy@gofleetzy.com">privacy@gofleetzy.com</a>.</p>
+
+  <h2>7. Your Rights (GDPR)</h2>
+  <p>If you are in the European Economic Area, you have the right to:</p>
+  <ul>
+    <li>Access a copy of your personal data</li>
+    <li>Correct inaccurate data</li>
+    <li>Request deletion of your data ("right to be forgotten")</li>
+    <li>Export your data in machine-readable format (CSV export available in-app)</li>
+    <li>Object to processing or withdraw consent</li>
+  </ul>
+  <p>To exercise any of these rights, contact <a href="mailto:privacy@gofleetzy.com">privacy@gofleetzy.com</a>. We will respond within 30 days.</p>
+
+  <h2>8. Cookies</h2>
+  <p>We use only essential cookies — session tokens required to keep you logged in. We do not use advertising, tracking, or analytics cookies. No cookie banner is required.</p>
+
+  <h2>9. Third-Party Services</h2>
+  <ul>
+    <li><strong>Supabase</strong> — database and authentication (supabase.com/privacy)</li>
+    <li><strong>Anthropic</strong> — AI analysis (anthropic.com/privacy)</li>
+    <li><strong>Stripe</strong> — payment processing (stripe.com/privacy)</li>
+    <li><strong>NHTSA</strong> — free US vehicle plate/VIN lookup API (no personal data sent)</li>
+  </ul>
+
+  <h2>10. Contact</h2>
+  <p>For any privacy questions: <a href="mailto:privacy@gofleetzy.com">privacy@gofleetzy.com</a></p>
+</div>
+</body>
+</html>

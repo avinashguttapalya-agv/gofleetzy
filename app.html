@@ -744,6 +744,15 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         <div class="card">
           <div class="card-header"><div class="card-title">Account Settings</div></div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:18px">
+            <div style="background:var(--mist);border-radius:9px;padding:14px 16px;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">Backend API</div>
+              <div style="font-size:13px;color:var(--stone);margin-bottom:10px">Your backend URL. Change this if you deploy to a custom domain.</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input class="form-input" id="set-api-base" placeholder="https://fleetzy-api.onrender.com" style="flex:1"/>
+                <button class="btn btn-ghost btn-sm" onclick="setApiBase(document.getElementById('set-api-base').value)">Save & Reload</button>
+              </div>
+              <div style="font-size:11px;color:var(--stone);margin-top:6px">Current: <code id="api-base-display2"></code></div>
+            </div>
             <div class="form-group"><label class="form-label">Organisation Name</label><input class="form-input" id="set-org" placeholder="Your company name"/></div>
             <div class="form-group"><label class="form-label">Your Name</label><input class="form-input" id="set-name" placeholder="Your full name"/></div>
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="set-email" type="email" placeholder="you@company.com"/></div>
@@ -844,11 +853,9 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               AI analysis reads your entire fleet — scores, usage patterns, cost data, and live market context — and gives you a plain-English strategic recommendation. It goes beyond the formula to identify patterns across your fleet.
             </div>
 
-            <div class="apikey-box">
-              <span style="font-size:13px;font-weight:600;color:var(--stone);white-space:nowrap">Claude API Key</span>
-              <input type="password" id="ai-api-key" placeholder="sk-ant-..." oninput="saveApiKey()"/>
-              <span class="apikey-status" id="apikey-status">Not set</span>
-              <a href="https://console.anthropic.com" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap">Get key →</a>
+            <div class="info-box" style="background:var(--green-bg);color:var(--green)">
+              ✅ AI analysis runs securely via the Fleetzy backend. Your API keys are never exposed in the browser.
+              <br><small style="opacity:.7">Backend: <span id="api-base-display"></span></small>
             </div>
 
             <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -893,13 +900,9 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                 <img id="invoice-preview" class="invoice-preview"/>
               </div>
 
-              <div class="apikey-box" style="margin:0">
-                <span style="font-size:13px;font-weight:600;color:var(--stone);white-space:nowrap">Claude API Key</span>
-                <input type="password" id="inv-api-key" placeholder="sk-ant-..." oninput="syncInvoiceApiKey()"/>
-                <span class="apikey-status" id="inv-apikey-status">Not set</span>
-              </div>
+              <div class="info-box" style="background:var(--green-bg);color:var(--green);margin:0">✅ Secure OCR — no API key needed. Processing happens on the backend server.</div>
 
-              <button class="invoice-scan-btn" id="invoice-scan-btn" onclick="scanInvoice()" disabled>
+              <button class="invoice-scan-btn" id="invoice-scan-btn" onclick="scanInvoice()">
                 🤖 Extract Invoice Data
               </button>
             </div>
@@ -1125,6 +1128,27 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 </div>
 
 <div class="toast" id="toast"></div>
+
+
+// ═══════════ BACKEND CONFIG ═══════════
+// Point this to your backend URL.
+// During GitHub Pages testing: use your Render.com URL
+// After going live: use https://api.gofleetzy.com
+const API_BASE = (function() {
+  const stored = localStorage.getItem('fy_api_base');
+  if (stored) return stored;
+  // Auto-detect: if on localhost use local backend, else use production
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001';
+  }
+  return 'https://fleetzy-api.onrender.com'; // ← update after deploying backend
+})();
+
+// Allow overriding API base from Settings
+function setApiBase(url) {
+  localStorage.setItem('fy_api_base', url.replace(/\/$/, ''));
+  location.reload();
+}
 
 <script>
 // ═══════════ DATA LAYER ═══════════
@@ -1587,7 +1611,7 @@ function nav(sec) {
   if(sec==='settings') { const u=getStore('fy_sb_url')||''; const k=getStore('fy_sb_key')||''; if(document.getElementById('set-sb-url')) { document.getElementById('set-sb-url').value=u; document.getElementById('set-sb-key').value=k; if(u&&k){document.getElementById('sb-status').textContent='✅ Connected';document.getElementById('sb-status').style.color='var(--green)';}}};
   if(sec==='settings') loadSettings();
   if(sec==='repairs') renderRepairsDashboard();
-  if(sec==='add') initPlateScanner();
+  if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
 }
 
@@ -1761,6 +1785,9 @@ function loadSettings(){
   document.getElementById('set-org').value=session.org||'';
   document.getElementById('set-name').value=session.name||'';
   document.getElementById('set-email').value=session.email||'';
+  const ab=document.getElementById('set-api-base'); if(ab) ab.value=API_BASE;
+  const abd=document.getElementById('api-base-display'); if(abd) abd.textContent=API_BASE;
+  const abd2=document.getElementById('api-base-display2'); if(abd2) abd2.textContent=API_BASE;
 }
 async function saveSettings(){if(gate('','settings'))return;
   const org=document.getElementById('set-org').value.trim();
@@ -1917,7 +1944,6 @@ function launchApp(){
   renderPlanUI();
   renderUnifiedDashboard();
   fetchLiveData();
-  loadApiKey();
 }
 
 
@@ -2018,47 +2044,31 @@ let liveData = {};
 async function fetchLiveData(forceRefresh = false) {
   const cached = getStore('fy_livedata');
   const cacheAge = getStore('fy_livedata_ts');
-  const CACHE_MS = 6 * 60 * 60 * 1000; // 6 hours
+  const CACHE_MS = 6 * 60 * 60 * 1000;
 
   if (!forceRefresh && cached && cacheAge && (Date.now() - cacheAge) < CACHE_MS) {
-    liveData = cached;
-    renderLiveData(false);
-    return;
+    liveData = cached; renderLiveData(false); return;
   }
 
-  document.getElementById('refresh-icon').classList.add('spinning');
-  document.getElementById('last-updated-label').textContent = 'Fetching...';
+  const ri = document.getElementById('refresh-icon');
+  const ll = document.getElementById('last-updated-label');
+  if (ri) ri.classList.add('spinning');
+  if (ll) ll.textContent = 'Fetching...';
 
   try {
-    // Fetch real fuel price data from Open Exchange Rates proxy
-    // Using GlobalPetrolPrices public JSON endpoint (no key needed)
-    let dieselPrice = null, petrolPrice = null;
-    try {
-      const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-      // Fuel prices estimated from EIA world average (publicly available)
-      // These are approximate global averages updated weekly
-      dieselPrice = 1.42; // USD/litre world avg (EIA 2025)
-      petrolPrice = 1.31; // USD/litre world avg (EIA 2025)
-    } catch(e) {}
-
-    // Fleet benchmarks (from Fleetio 2025 industry report — publicly available)
-    liveData = {
-      dieselPrice: dieselPrice ?? 1.42,
-      petrolPrice: petrolPrice ?? 1.31,
-      usedCarIndex: '+3.2%',   // YoY used car market trend
-      fleetAvgCPM: 0.19,       // Industry avg cost per km (Fleetio 2025)
-      avgRepairCost: 620,       // Per-incident avg repair (RepairPal 2025)
-      downtimeCost: 604,        // Per-day avg downtime cost (Element Fleet 2025)
-    };
-
+    const resp = await fetch(API_BASE + '/api/live-data');
+    if (!resp.ok) throw new Error('Backend unreachable');
+    const json = await resp.json();
+    liveData = json.data;
     setStore('fy_livedata', liveData);
     setStore('fy_livedata_ts', Date.now());
     renderLiveData(true);
   } catch(e) {
-    toast('Could not fetch live data. Using cached benchmarks.');
+    liveData = liveData || { dieselPrice:1.42, petrolPrice:1.31, usedCarIndex:'+3.2%',
+      fleetAvgCPM:0.19, avgRepairCost:620, downtimeCost:604 };
     renderLiveData(false);
   } finally {
-    document.getElementById('refresh-icon').classList.remove('spinning');
+    if (ri) ri.classList.remove('spinning');
   }
 }
 
@@ -2096,31 +2106,10 @@ function renderLiveData(fresh) {
 }
 
 // ═══════════ AI ANALYSIS ═══════════
-function saveApiKey() {
-  const key = document.getElementById('ai-api-key').value.trim();
-  if (key) {
-    setStore('fy_apikey', key);
-    document.getElementById('apikey-status').textContent = '✓ Saved';
-    document.getElementById('apikey-status').className = 'apikey-status apikey-ok';
-  } else {
-    document.getElementById('apikey-status').textContent = 'Not set';
-    document.getElementById('apikey-status').className = 'apikey-status apikey-missing';
-  }
-}
-
-function loadApiKey() {
-  const key = getStore('fy_apikey');
-  if (key) {
-    document.getElementById('ai-api-key').value = key;
-    document.getElementById('apikey-status').textContent = '✓ Saved';
-    document.getElementById('apikey-status').className = 'apikey-status apikey-ok';
-  }
-}
+// API key is stored securely on the backend server — not in the browser
 
 async function runAIAnalysis(mode) {
   if(gate('ai'))return;
-  const apiKey = getStore('fy_apikey');
-  if (!apiKey) { toast('Please enter your Claude API key first.'); document.getElementById('ai-api-key').focus(); return; }
 
   const fleet = await getFleet();
   if (!fleet.length) { toast('No vehicles to analyse. Add some fleet data first.'); return; }
@@ -2156,23 +2145,19 @@ async function runAIAnalysis(mode) {
   document.getElementById('ai-result-tags').innerHTML = '';
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(API_BASE + '/api/ai-analysis', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: prompts[mode] }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fleet: filtered.map(x=>({...x.v, score:x.score, cpmVal:x.cpmVal})), mode, liveData })
     });
 
     if (!response.ok) {
       const err = await response.json();
-      throw new Error(err.error?.message || 'API error');
+      throw new Error(err.error || 'Backend error');
     }
 
     const data = await response.json();
-    const text = data.content?.map(c => c.text || '').join('') || 'No response.';
+    const text = data.analysis || 'No response.';
 
     document.getElementById('ai-result-text').textContent = text;
     document.getElementById('ai-result-text').className = 'ai-text';
@@ -2354,75 +2339,39 @@ async function lookupPlate() {
   document.getElementById('plate-status').textContent = 'Looking up vehicle...';
   document.getElementById('plate-result').classList.remove('show');
 
-  // Step 1: If photo, use Claude Vision to read the plate
   let resolvedPlate = plateText;
-  if (_platePhotoBase64 && apiKey) {
-    try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-        body: JSON.stringify({
-          model:'claude-sonnet-4-20250514', max_tokens:100,
-          messages:[{role:'user',content:[
-            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:_platePhotoBase64}},
-            {type:'text',text:'Read the license plate number in this image. Respond with ONLY the plate number, no other text. Include letters and numbers exactly as shown.'}
-          ]}]
-        })
-      });
-      const d = await r.json();
-      const extracted = d.content?.map(c=>c.text||'').join('').trim().replace(/[^A-Z0-9]/g,'');
-      if (extracted) { resolvedPlate = extracted; document.getElementById('plate-text').value = extracted; }
-    } catch(e) { console.warn('Plate OCR failed:', e.message); }
-  }
 
-  if (!resolvedPlate) {
-    document.getElementById('plate-status').textContent = '❌ Could not read plate. Try typing it manually.';
-    btn.disabled = false; btn.textContent = 'Look Up →'; return;
-  }
-
-  // Step 2: Look up vehicle via DVLA / NHTSA free API
   try {
     let vehicleData = null;
 
-    // Try NHTSA decode (US plates / VIN-based, free, no key needed)
-    // For demo purposes we use a smart fallback pattern
-    const nhtsaResp = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${resolvedPlate}?format=json`);
-    if (nhtsaResp.ok) {
-      const nhtsaData = await nhtsaResp.json();
-      const r = nhtsaData.Results?.[0];
-      if (r && r.Make && r.Make !== 'Not Applicable') {
-        vehicleData = {
-          make: r.Make, model: r.Model, year: r.ModelYear,
-          fuelType: r.FuelTypePrimary?.toLowerCase().includes('electric') ? 'bev'
-            : r.FuelTypePrimary?.toLowerCase().includes('hybrid') ? 'hybrid'
-            : r.FuelTypePrimary?.toLowerCase().includes('diesel') ? 'diesel' : 'gasoline',
-          engine: r.DisplacementL ? r.DisplacementL + 'L' : (r.EngineCylinders ? r.EngineCylinders + '-cyl' : '—'),
-          source: 'NHTSA'
-        };
+    // If photo uploaded, send to backend for OCR + lookup
+    if (_platePhotoBase64) {
+      const byteChars = atob(_platePhotoBase64);
+      const byteNums = new Uint8Array(byteChars.length);
+      for (let i=0;i<byteChars.length;i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteNums], {type:'image/jpeg'});
+      const fd = new FormData();
+      fd.append('plate', blob, 'plate.jpg');
+      if (plateText) fd.append('plate_text', plateText);
+
+      const resp = await fetch(API_BASE + '/api/scan-plate', { method:'POST', body: fd });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.plate) { resolvedPlate = data.plate; document.getElementById('plate-text').value = data.plate; }
+        vehicleData = data.vehicle;
       }
-    }
-
-    // If NHTSA returned nothing useful (non-US plate), use Claude AI as fallback
-    if (!vehicleData && apiKey) {
-      const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-        body: JSON.stringify({
-          model:'claude-sonnet-4-20250514', max_tokens:200,
-          messages:[{role:'user',content:`The vehicle registration/license plate is: ${resolvedPlate}
-
-Based on this plate format and number, identify the likely vehicle make, model, and year if possible. Many plates encode year or region info.
-
-Respond ONLY with JSON:
-{"make":"Ford","model":"Transit","year":"2017","fuelType":"diesel","engine":"2.0L","confidence":"low|medium|high","note":"brief explanation"}`}]
-        })
+    } else if (plateText) {
+      // Text-only lookup
+      const resp = await fetch(API_BASE + '/api/scan-plate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ plate_text: plateText })
       });
-      const aiData = await aiResp.json();
-      const raw = aiData.content?.map(c=>c.text||'').join('').trim();
-      try {
-        const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
-        vehicleData = { make: parsed.make, model: parsed.model, year: parsed.year, fuelType: parsed.fuelType||'gasoline', engine: parsed.engine||'—', note: parsed.note, confidence: parsed.confidence, source: 'AI estimate' };
-      } catch(e) {}
+      // Note: multer expects FormData but we handle text via req.body too
+      if (resp.ok) {
+        const data = await resp.json();
+        vehicleData = data.vehicle;
+      }
     }
 
     if (!vehicleData) throw new Error('Could not identify vehicle. Try entering details manually.');
@@ -2650,18 +2599,9 @@ function saveRepairs(r) {
 let invoiceImageBase64 = null;
 
 function syncInvoiceApiKey() {
-  const key = document.getElementById('inv-api-key')?.value?.trim() ||
-              document.getElementById('ai-api-key')?.value?.trim() ||
-              getStore('fy_apikey') || '';
-  if (document.getElementById('inv-api-key') && !document.getElementById('inv-api-key').value) {
-    document.getElementById('inv-api-key').value = key;
-  }
-  const hasKey = !!key;
-  const statusEl = document.getElementById('inv-apikey-status');
-  if (statusEl) { statusEl.textContent = hasKey ? '✓ Saved' : 'Not set'; statusEl.className = 'apikey-status ' + (hasKey ? 'apikey-ok' : 'apikey-missing'); }
-  const scanBtn = document.getElementById('invoice-scan-btn');
-  if (scanBtn) scanBtn.disabled = !(hasKey && invoiceImageBase64);
-  if (key) setStore('fy_apikey', key);
+  // No-op: API keys are handled server-side
+  const abd = document.getElementById('api-base-display');
+  if (abd) abd.textContent = API_BASE;
 }
 
 function handleInvoiceFile(file) {
@@ -2681,50 +2621,39 @@ function handleInvoiceFile(file) {
 }
 
 async function scanInvoice() {
-  const apiKey = document.getElementById('inv-api-key')?.value?.trim() || getStore('fy_apikey');
-  if (!apiKey) { toast('Please enter your Claude API key.'); return; }
   if (!invoiceImageBase64) { toast('Please upload an invoice image first.'); return; }
 
   const btn = document.getElementById('invoice-scan-btn');
   btn.disabled = true; btn.textContent = '⏳ Scanning...';
-  setScanStatus('scanning', '🤖 Analysing invoice...');
+  setScanStatus('scanning', '🔍 Running OCR analysis...');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Convert base64 to blob for FormData upload to backend
+    const byteChars = atob(invoiceImageBase64);
+    const byteNums = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteNums], { type: 'image/jpeg' });
+
+    const formData = new FormData();
+    formData.append('invoice', blob, 'invoice.jpg');
+
+    const response = await fetch(API_BASE + '/api/scan-invoice', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 600,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: invoiceImageBase64 } },
-            { type: 'text', text: `You are reading a mechanic or auto repair invoice. Extract the following information and respond ONLY with valid JSON, no other text:
-{
-  "vehicle": "make and model if visible, else Unknown",
-  "date": "invoice date in YYYY-MM-DD format, else today",
-  "total_cost": numeric total cost in USD/local currency (number only, no symbols),
-  "currency_symbol": "$",
-  "category": one of: "Engine"|"Brakes"|"Tyres"|"Electrical"|"Bodywork"|"Service"|"Other",
-  "items": ["line item 1", "line item 2"],
-  "notes": "one sentence summary of key findings or concerns from the invoice"
-}` }
-          ]
-        }]
-      })
+      body: formData
+      // No API key header — backend holds the keys
     });
 
-    if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || 'API error'); }
-    const data = await response.json();
-    const raw = data.content?.map(c=>c.text||'').join('').trim();
+    if (!response.ok) {
+      const e = await response.json();
+      throw new Error(e.error || 'Backend scan failed');
+    }
 
-    let parsed;
-    try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); }
-    catch(e) { throw new Error('Could not parse AI response. Try a clearer photo.'); }
+    const respData = await response.json();
+    const parsed = respData.data;
+    if (!parsed) throw new Error('No data returned from scan');
 
     renderScanResult(parsed);
-    setScanStatus('done', '✅ Invoice scanned successfully');
+    setScanStatus('done', `✅ Invoice scanned (${parsed.source === 'tesseract' ? 'Free OCR' : parsed.source === 'claude' ? 'AI Vision' : 'OCR'})`);
     populateVehicleSelect();
 
   } catch(e) {
