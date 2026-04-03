@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fleetzy — Dashboard</title>
+<title>Fleetzy — Dashboard</title>FF
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1508,7 +1508,34 @@ async function doSignUp() {
   launchApp();
   toast('Welcome to Fleetzy!');
 }
+async function ensureProfileExists(email) {
+  // Wait 800ms for trigger to run
+  await new Promise(r => setTimeout(r, 800));
 
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select()
+    .eq('email', email);
+
+  if (!profile?.length) {
+    const { error: insertError } = await supabase.from('profiles').insert({
+      email,
+      plan: 'trial',
+      created_at: new Date().toISOString()
+    });
+    if (insertError) console.error('Fallback profile insert failed:', insertError.message);
+    else console.log('✅ Profile created via frontend fallback');
+  } else {
+    console.log('✅ Profile already exists');
+  }
+}
+
+// Example usage after signUp:
+const { data, error } = await supabase.auth.signUp({ email, password });
+if (!error) {
+  await ensureProfileExists(email);
+}
+  
 function demoLogin() {
   const accounts = getAccounts();
   const demoId = 'demo_account';
