@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fleetzy — Dashboard</title>FF
+<title>Fleetzy — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1383,33 +1383,14 @@ async function doSignIn() {
       const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
       if (!error && data.user) {
         // Fetch account profile from profiles table
-        let profile = null;
-        const { data: profileData } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-        profile = profileData;
-
-        // If profile missing (edge case), create it now
-        if (!profile) {
-          const meta = data.user.user_metadata || {};
-          await sb.from('profiles').upsert({
-            id: data.user.id,
-            email: data.user.email,
-            name: meta.name || data.user.email.split('@')[0],
-            org: meta.org || 'My Fleet',
-            plan: meta.plan || 'trial',
-            plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
-          });
-          const { data: retryProfile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-          profile = retryProfile;
-        }
-
+        const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
         session = {
           accountId: data.user.id,
           email: data.user.email,
-          name: profile?.name || data.user.email.split('@')[0],
+          name: profile?.name || data.user.email,
           org: profile?.org || 'My Fleet',
           plan: profile?.plan || 'trial',
-          role: 'admin',
-          createdAt: profile?.created_at || new Date().toISOString()
+          role: 'admin'
         };
         setStore('fy_session', session);
         launchApp();
@@ -1432,83 +1413,45 @@ async function doSignUp() {
   const email = document.getElementById('su-email').value.trim().toLowerCase();
   const org = document.getElementById('su-org').value.trim();
   const pass = document.getElementById('su-password').value;
-  const plan = document.getElementById('su-plan').value || 'trial';
-
+  const plan = document.getElementById('su-plan').value;
   if (!name||!email||!org||!pass) { toast('Please fill in all fields.'); return; }
   if (pass.length < 8) { toast('Password must be at least 8 characters.'); return; }
 
+  // Try Supabase signup first
   if (isSupabaseReady()) {
     try {
-      // Step 1: Create auth user — the DB trigger auto-creates the profile row
-      const { data, error } = await sb.auth.signUp({
-        email, password: pass,
-        options: { data: { name, org, plan } }  // passed to DB trigger
-      });
-
-      if (error) {
-        // Handle common errors with friendly messages
-        if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
-          toast('This email is already registered. Try signing in instead.'); return;
-        }
-        throw error;
+      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name, org, plan } } });
+      if (error) throw error;
+      if (data.user) {
+        // Insert profile row
+        await sb.from('profiles').upsert({ id: data.user.id, name, email, org, plan });
+        // Seed team
+        await sb.from('team_members').insert({ id: Date.now(), account_id: data.user.id, name, email, role: 'admin', joined: new Date().toLocaleDateString() });
+        session = { accountId: data.user.id, email, name, org, plan, role: 'admin' };
+        setStore('fy_session', session);
+        launchApp();
+        toast('Welcome to Fleetzy! Account created.');
+        return;
       }
-
-      if (!data.user) { toast('Sign up failed — please try again.'); return; }
-
-      // Step 2: Wait briefly for DB trigger to complete, then verify profile
-      await new Promise(r => setTimeout(r, 800));
-
-      const { data: profile, error: profileErr } = await sb
-        .from('profiles').select('*').eq('id', data.user.id).single();
-
-      if (profileErr || !profile) {
-        // Trigger may not have fired (older Supabase) — insert manually as fallback
-        console.warn('Profile not created by trigger, inserting manually');
-        const { error: insertErr } = await sb.from('profiles').upsert({
-          id: data.user.id, email, name, org, plan,
-          plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
-        });
-        if (insertErr) console.error('Manual profile insert failed:', insertErr.message);
-      }
-
-      // Step 3: Set session and launch
-      session = {
-        accountId: data.user.id,
-        email,
-        name: profile?.name || name,
-        org: profile?.org || org,
-        plan: profile?.plan || plan,
-        role: 'admin',
-        createdAt: new Date().toISOString()
-      };
-      setStore('fy_session', session);
-      _fleetCache = null; _teamCache = null;
-      launchApp();
-      toast('Welcome to Fleetzy!');
-      return;
-
     } catch(e) {
-      console.error('Signup error:', e);
-      toast('Sign up failed: ' + (e.message || 'Unknown error'));
+      toast('Sign up failed: ' + e.message);
       return;
     }
   }
 
-  // ── Fallback: localStorage (when Supabase not configured) ──────────
+  // Fallback: localStorage signup
   const accounts = getAccounts();
-  if (Object.values(accounts).find(a => a.email === email)) {
-    toast('Email already registered. Try signing in.'); return;
-  }
+  if (Object.values(accounts).find(a => a.email===email)) { toast('Email already registered.'); return; }
   const id = 'acct_' + Date.now();
   accounts[id] = { id, name, email, password: pass, org, plan };
   saveAccounts(accounts);
-  session = { accountId: id, email, name, org, plan, role: 'admin', createdAt: new Date().toISOString() };
+  session = { accountId: id, email, name, org, plan, role: 'admin' };
   setStore('fy_session', session);
   await saveTeam([{ id: Date.now(), name, email, role: 'admin', joined: new Date().toLocaleDateString() }]);
   launchApp();
   toast('Welcome to Fleetzy!');
 }
-  
+
 function demoLogin() {
   const accounts = getAccounts();
   const demoId = 'demo_account';
@@ -2677,15 +2620,23 @@ function handleInvoiceFile(file) {
   reader.readAsDataURL(file);
 }
 
+const API_BASE = window.location.hostname.includes('localhost')
+  ? 'http://localhost:3001'
+  : 'https://fleetzy-backend.onrender.com';
+  
 async function scanInvoice() {
-  if (!invoiceImageBase64) { toast('Please upload an invoice image first.'); return; }
+  if (!invoiceImageBase64) { 
+    toast('Please upload an invoice image first.'); 
+    return; 
+  }
 
   const btn = document.getElementById('invoice-scan-btn');
-  btn.disabled = true; btn.textContent = '⏳ Scanning...';
+  btn.disabled = true; 
+  btn.textContent = '⏳ Scanning...';
   setScanStatus('scanning', '🔍 Running OCR analysis...');
 
   try {
-    // Convert base64 to blob for FormData upload to backend
+    // Convert base64 to blob
     const byteChars = atob(invoiceImageBase64);
     const byteNums = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
@@ -2700,24 +2651,38 @@ async function scanInvoice() {
       // No API key header — backend holds the keys
     });
 
-    if (!response.ok) {
-      const e = await response.json();
-      throw new Error(e.error || 'Backend scan failed');
+    // Check response type before parsing JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Unexpected backend response:', text);
+      throw new Error('Backend returned non-JSON response');
     }
 
     const respData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(respData.error || 'Backend scan failed');
+    }
+
     const parsed = respData.data;
     if (!parsed) throw new Error('No data returned from scan');
 
     renderScanResult(parsed);
-    setScanStatus('done', `✅ Invoice scanned (${parsed.source === 'tesseract' ? 'Free OCR' : parsed.source === 'claude' ? 'AI Vision' : 'OCR'})`);
+
+    setScanStatus(
+      'done',
+      `✅ Invoice scanned (${parsed.source === 'tesseract' ? 'Free OCR' : parsed.source === 'claude' ? 'AI Vision' : 'OCR'})`
+    );
+
     populateVehicleSelect();
 
   } catch(e) {
     setScanStatus('error', '❌ ' + e.message);
     toast('Scan failed: ' + e.message);
   } finally {
-    btn.disabled = false; btn.innerHTML = '🤖 Extract Invoice Data';
+    btn.disabled = false; 
+    btn.innerHTML = '🤖 Extract Invoice Data';
   }
 }
 
@@ -2729,13 +2694,16 @@ function setScanStatus(type, msg) {
 function renderScanResult(d) {
   document.getElementById('sr-vehicle').textContent = d.vehicle || 'Unknown';
   document.getElementById('sr-date').textContent = d.date || '—';
-  document.getElementById('sr-total').textContent = (d.currency_symbol||'$') + parseFloat(d.total_cost||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  document.getElementById('sr-category').innerHTML = `<span class="repair-cat cat-${(d.category||'other').toLowerCase()}">${d.category||'Other'}</span>`;
+  document.getElementById('sr-total').textContent = (d.currency_symbol || '$') + parseFloat(d.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('sr-category').innerHTML = `<span class="repair-cat cat-${(d.category || 'other').toLowerCase()}">${d.category || 'Other'}</span>`;
   document.getElementById('sr-notes').textContent = d.notes || '—';
-  document.getElementById('sr-items').innerHTML = (d.items||[]).map(i=>`<div class="scan-item"><span class="scan-item-name">${i}</span></div>`).join('') || '<div class="scan-item"><span class="scan-item-name">See invoice</span></div>';
+  document.getElementById('sr-items').innerHTML = (d.items && d.items.length > 0 ? 
+    d.items.map(i => `<div class="scan-item"><span class="scan-item-name">${i}</span></div>`).join('') 
+    : '<div class="scan-item"><span class="scan-item-name">See invoice</span></div>'
+  );
   document.getElementById('scan-result').classList.add('show');
 
-  // Store parsed result for apply
+  // Store parsed result globally
   window._lastScanResult = d;
 }
 
@@ -2748,7 +2716,7 @@ function populateVehicleSelect() {
       fleet.map(v => `<option value="${v.id}">${v.model} (${v.year})</option>`).join('');
     if (cur) sel.value = cur;
 
-    // Also populate repair filter
+    // Populate repair filter
     const rf = document.getElementById('rf-vehicle');
     if (rf) {
       rf.innerHTML = '<option value="">All vehicles</option>' +
@@ -2950,26 +2918,13 @@ if (invDrop) {
       const { data: { session: sbSess } } = await sb.auth.getSession();
       if (sbSess?.user && params.get('signup') !== '1') {
         const { data: profile } = await sb.from('profiles').select('*').eq('id', sbSess.user.id).single();
-        if (!profile) {
-          // Profile missing — create it from auth metadata
-          const meta = sbSess.user.user_metadata || {};
-          await sb.from('profiles').upsert({
-            id: sbSess.user.id, email: sbSess.user.email,
-            name: meta.name || sbSess.user.email.split('@')[0],
-            org: meta.org || 'My Fleet', plan: meta.plan || 'trial',
-            plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
-          });
-          const { data: rp } = await sb.from('profiles').select('*').eq('id', sbSess.user.id).single();
-          profile = rp;
-        }
         session = {
           accountId: sbSess.user.id,
           email: sbSess.user.email,
-          name: profile?.name || sbSess.user.email.split('@')[0],
+          name: profile?.name || sbSess.user.email,
           org: profile?.org || 'My Fleet',
           plan: profile?.plan || 'trial',
-          role: 'admin',
-          createdAt: profile?.created_at || new Date().toISOString()
+          role: 'admin'
         };
         setStore('fy_session', session);
         launchApp();
