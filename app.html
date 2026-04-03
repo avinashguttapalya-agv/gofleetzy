@@ -2637,6 +2637,8 @@ async function scanInvoice() {
     const formData = new FormData();
     formData.append('invoice', blob, 'invoice.jpg');
 
+    const API_BASE = "https://fleetzy-backend.onrender.com/"; 
+
     const response = await fetch(API_BASE + '/api/scan-invoice', {
       method: 'POST',
       body: formData
