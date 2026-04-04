@@ -769,6 +769,33 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
             <div class="form-group"><label class="form-label">Organisation Name</label><input class="form-input" id="set-org" placeholder="Your company name"/></div>
             <div class="form-group"><label class="form-label">Your Name</label><input class="form-input" id="set-name" placeholder="Your full name"/></div>
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="set-email" type="email" placeholder="you@company.com"/></div>
+            <div class="form-group">
+              <label class="form-label">Account Currency</label>
+              <select class="form-select" id="set-currency">
+                <option value="USD|$|en">USD — US Dollar ($)</option>
+                <option value="EUR|€|es">EUR — Euro (€)</option>
+                <option value="GBP|£|en">GBP — British Pound (£)</option>
+                <option value="CAD|CA$|en">CAD — Canadian Dollar (CA$)</option>
+                <option value="AUD|A$|en">AUD — Australian Dollar (A$)</option>
+                <option value="MXN|MX$|es">MXN — Mexican Peso (MX$)</option>
+                <option value="BRL|R$|pt">BRL — Brazilian Real (R$)</option>
+                <option value="CHF|CHF|en">CHF — Swiss Franc (CHF)</option>
+                <option value="JPY|¥|en">JPY — Japanese Yen (¥)</option>
+                <option value="CNY|¥|en">CNY — Chinese Yuan (¥)</option>
+                <option value="INR|₹|en">INR — Indian Rupee (₹)</option>
+                <option value="SEK|kr|en">SEK — Swedish Krona (kr)</option>
+                <option value="NOK|kr|en">NOK — Norwegian Krone (kr)</option>
+                <option value="DKK|kr|en">DKK — Danish Krone (kr)</option>
+                <option value="PLN|zł|en">PLN — Polish Złoty (zł)</option>
+                <option value="ZAR|R|en">ZAR — South African Rand (R)</option>
+                <option value="AED|د.إ|en">AED — UAE Dirham (د.إ)</option>
+                <option value="SGD|S$|en">SGD — Singapore Dollar (S$)</option>
+                <option value="NZD|NZ$|en">NZD — New Zealand Dollar (NZ$)</option>
+              </select>
+              <div style="font-size:11px;color:var(--stone);margin-top:4px">
+                Used across all cost displays. Invoice scanning auto-detects currency — amounts are converted to your account currency on the dashboard.
+              </div>
+            </div>
             <button class="btn btn-primary" style="width:auto" onclick="saveSettings()">Save Changes</button>
             <div style="border-top:1px solid var(--border);padding-top:16px">
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Supabase Database</div>
@@ -939,25 +966,93 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div id="scan-status-bar"></div>
 
               <div class="scan-result" id="scan-result">
-                <div class="scan-fields-grid">
-                  <div class="scan-field"><div class="scan-field-label">Vehicle</div><div class="scan-field-val" id="sr-vehicle">—</div></div>
-                  <div class="scan-field"><div class="scan-field-label">Date</div><div class="scan-field-val" id="sr-date">—</div></div>
-                  <div class="scan-field"><div class="scan-field-label">Total Cost</div><div class="scan-field-val" id="sr-total" style="color:var(--accent);font-size:18px;font-weight:700">—</div></div>
-                  <div class="scan-field"><div class="scan-field-label">Category</div><div class="scan-field-val" id="sr-category">—</div></div>
+
+                <!-- Edit toggle -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                  <div style="font-size:12px;color:var(--stone)" id="sr-source-label"></div>
+                  <button class="btn btn-ghost btn-sm" onclick="toggleScanEdit()" id="sr-edit-btn" style="font-size:12px">✏️ Edit</button>
                 </div>
 
-                <div class="scan-field">
-                  <div class="scan-field-label">Work Performed</div>
-                  <div class="scan-items-list" id="sr-items"></div>
+                <!-- VIEW MODE -->
+                <div id="sr-view-mode">
+                  <div class="scan-fields-grid">
+                    <div class="scan-field"><div class="scan-field-label">Vehicle</div><div class="scan-field-val" id="sr-vehicle">—</div></div>
+                    <div class="scan-field"><div class="scan-field-label">Date</div><div class="scan-field-val" id="sr-date">—</div></div>
+                    <div class="scan-field">
+                      <div class="scan-field-label">Total Cost</div>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <div class="scan-field-val" id="sr-total" style="color:var(--accent);font-size:18px;font-weight:700">—</div>
+                        <span id="sr-currency-badge" style="display:none;font-size:10px;font-weight:700;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:6px"></span>
+                        <span id="sr-converted" style="display:none;font-size:11px;color:var(--stone)"></span>
+                      </div>
+                    </div>
+                    <div class="scan-field"><div class="scan-field-label">Category</div><div class="scan-field-val" id="sr-category">—</div></div>
+                  </div>
+                  <div class="scan-field" style="margin-top:10px">
+                    <div class="scan-field-label">Work Performed</div>
+                    <div class="scan-items-list" id="sr-items"></div>
+                  </div>
+                  <div class="scan-field" style="margin-top:8px">
+                    <div class="scan-field-label">Notes</div>
+                    <div class="scan-field-val" id="sr-notes" style="font-size:13px;color:var(--stone);line-height:1.5"></div>
+                  </div>
                 </div>
 
-                <div class="scan-field">
-                  <div class="scan-field-label">Notes from AI</div>
-                  <div class="scan-field-val" id="sr-notes" style="font-size:13px;color:var(--stone);line-height:1.5"></div>
+                <!-- EDIT MODE (hidden by default) -->
+                <div id="sr-edit-mode" style="display:none">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                    <div class="form-group" style="margin:0">
+                      <label class="form-label">Vehicle / Description</label>
+                      <input class="form-input" id="se-vehicle" placeholder="e.g. Ford Transit"/>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                      <label class="form-label">Date</label>
+                      <input class="form-input" id="se-date" type="date"/>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                      <label class="form-label">Total Cost (in invoice currency)</label>
+                      <input class="form-input" id="se-cost" type="number" min="0" step="0.01" placeholder="0.00"/>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                      <label class="form-label">Invoice Currency</label>
+                      <select class="form-select" id="se-currency">
+                        <option value="USD|$">USD ($)</option>
+                        <option value="EUR|€">EUR (€)</option>
+                        <option value="GBP|£">GBP (£)</option>
+                        <option value="CAD|CA$">CAD (CA$)</option>
+                        <option value="AUD|A$">AUD (A$)</option>
+                        <option value="MXN|MX$">MXN (MX$)</option>
+                        <option value="BRL|R$">BRL (R$)</option>
+                        <option value="CHF|CHF">CHF</option>
+                        <option value="JPY|¥">JPY (¥)</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1;margin:0">
+                      <label class="form-label">Category</label>
+                      <select class="form-select" id="se-category">
+                        <option value="Engine">Engine</option>
+                        <option value="Brakes">Brakes</option>
+                        <option value="Tyres">Tyres</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Bodywork">Bodywork</option>
+                        <option value="Service">Service</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1;margin:0">
+                      <label class="form-label">Work Performed (one item per line)</label>
+                      <textarea class="form-input" id="se-items" rows="3" placeholder="Oil change&#10;Brake pads replaced&#10;Filter replacement" style="resize:vertical;font-family:inherit"></textarea>
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1;margin:0">
+                      <label class="form-label">Notes</label>
+                      <input class="form-input" id="se-notes" placeholder="Any additional notes"/>
+                    </div>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" onclick="applyScanEdits()" style="width:100%;margin-bottom:8px">✓ Apply Edits</button>
                 </div>
 
                 <!-- Apply to vehicle -->
-                <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:10px;margin-top:12px">
                   <div style="font-size:13px;font-weight:700;color:var(--ink)">Apply to vehicle</div>
                   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                     <select class="form-select" id="sr-vehicle-select" style="flex:1;min-width:160px">
@@ -2040,6 +2135,7 @@ function loadSettings(){
   const abd=document.getElementById('api-base-display'); if(abd) abd.textContent=API_BASE;
   const abd2=document.getElementById('api-base-display2'); if(abd2) abd2.textContent=API_BASE;
   loadAlertThresholds();
+  loadCurrencySetting();
 }
 async function saveSettings(){if(gate('','settings'))return;
   const org=document.getElementById('set-org').value.trim();
@@ -2050,6 +2146,9 @@ async function saveSettings(){if(gate('','settings'))return;
   session.org=org;session.name=name;setStore('fy_session',session);
   document.getElementById('s-org-name').textContent=org;
   document.getElementById('u-name').textContent=name;
+  // Save currency
+  const curSel = document.getElementById('set-currency');
+  if (curSel && curSel.value) setAccountCurrency(curSel.value);
   toast('Settings saved.');
 }
 async function clearAllData(){if(confirm('Delete ALL fleet data for this account? This cannot be undone.')){if(isSupabaseReady()&&session?.accountId){try{await sb.from('vehicles').delete().eq('account_id',session.accountId);}catch(e){console.warn(e)}}setStore('fy_fleet_'+session?.accountId,[]);_fleetCache=null;toast('All fleet data deleted.');await renderDashboard();}}
@@ -2739,7 +2838,7 @@ async function renderUnifiedDashboard() {
   document.getElementById('kpi-critical').textContent = critical;
   document.getElementById('kpi-watch').textContent = watch;
   document.getElementById('kpi-service').textContent = serviceDue;
-  document.getElementById('kpi-cost').textContent = '$' + Math.round(ytdCost).toLocaleString();
+  document.getElementById('kpi-cost').textContent = formatMoney(ytdCost);
   document.getElementById('kpi-healthy').textContent = healthy;
 
   // Vehicle Command Centre
@@ -3045,18 +3144,55 @@ function setScanStatus(type, msg) {
 }
 
 function renderScanResult(d) {
-  document.getElementById('sr-vehicle').textContent = d.vehicle || 'Unknown';
-  document.getElementById('sr-date').textContent = d.date || '—';
-  document.getElementById('sr-total').textContent = (d.currency_symbol || '$') + parseFloat(d.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('sr-category').innerHTML = `<span class="repair-cat cat-${(d.category || 'other').toLowerCase()}">${d.category || 'Other'}</span>`;
-  document.getElementById('sr-notes').textContent = d.notes || '—';
-  document.getElementById('sr-items').innerHTML = (d.items && d.items.length > 0 ? 
-    d.items.map(i => `<div class="scan-item"><span class="scan-item-name">${i}</span></div>`).join('') 
-    : '<div class="scan-item"><span class="scan-item-name">See invoice</span></div>'
-  );
-  document.getElementById('scan-result').classList.add('show');
+  const acct = getAccountCurrency();
+  const invCode   = d.currency_code   || acct.code;
+  const invSymbol = d.currency_symbol || acct.symbol;
+  // Spanish/Portuguese invoices: es locale; all others: en
+  const invLocale = (invCode === 'EUR' || invCode === 'MXN' || invCode === 'BRL') ? 'es' : 'en';
 
-  // Store parsed result globally
+  document.getElementById('sr-vehicle').textContent = d.vehicle || 'Unknown';
+  document.getElementById('sr-date').textContent    = d.date    || '—';
+
+  // Show invoice amount in detected currency + locale format
+  document.getElementById('sr-total').textContent = formatMoney(d.total_cost, { symbol: invSymbol, locale: invLocale });
+
+  // Badge + conversion when invoice currency differs from account currency
+  const badge     = document.getElementById('sr-currency-badge');
+  const converted = document.getElementById('sr-converted');
+  if (badge) {
+    if (invCode !== acct.code) {
+      badge.textContent      = invCode;
+      badge.style.display    = 'inline-block';
+      const convertedAmt     = convertToAccountCurrency(d.total_cost, invCode);
+      d._converted_cost      = convertedAmt;
+      d._converted_currency  = acct.code;
+      if (converted) {
+        converted.textContent  = '≈ ' + formatMoney(convertedAmt);
+        converted.style.display = 'inline';
+      }
+    } else {
+      badge.style.display    = 'none';
+      if (converted) converted.style.display = 'none';
+      d._converted_cost      = null;
+    }
+  }
+
+  // Source label
+  const srcEl = document.getElementById('sr-source-label');
+  if (srcEl) srcEl.textContent = d._edited ? '✏️ Manually edited'
+    : d.source === 'claude'    ? '🤖 AI Vision extracted'
+    : d.source === 'tesseract' ? '🔍 Free OCR extracted' : '';
+
+  document.getElementById('sr-category').innerHTML =
+    `<span class="repair-cat cat-${(d.category||'other').toLowerCase()}">${d.category||'Other'}</span>`;
+  document.getElementById('sr-notes').textContent = d.notes || '—';
+
+  const items = Array.isArray(d.items) ? d.items : (d.items ? String(d.items).split(',') : []);
+  document.getElementById('sr-items').innerHTML = items.length
+    ? items.map(i => `<div class="scan-item"><span class="scan-item-name">${String(i).trim()}</span></div>`).join('')
+    : '<div class="scan-item"><span class="scan-item-name">See invoice</span></div>';
+
+  document.getElementById('scan-result').classList.add('show');
   window._lastScanResult = d;
 }
 
@@ -3088,6 +3224,10 @@ async function applyInvoiceToVehicle() {
   const v = fleet.find(x => String(x.id) === String(vehicleId));
   if (!v) { toast('Vehicle not found.'); return; }
 
+  // Use converted cost if invoice was in a different currency
+  const repairCost = d._converted_cost != null ? d._converted_cost : parseFloat(d.total_cost || 0);
+  const acctCur = getAccountCurrency();
+
   const newRepair = {
     id: Date.now(),
     vehicleId: parseInt(vehicleId),
@@ -3095,8 +3235,10 @@ async function applyInvoiceToVehicle() {
     date: d.date || new Date().toISOString().split('T')[0],
     category: d.category || 'Other',
     items: Array.isArray(d.items) ? d.items.join(', ') : (d.items||''),
-    cost: parseFloat(d.total_cost||0),
-    notes: d.notes || '',
+    cost: repairCost,
+    notes: d.notes || (d._converted_cost != null
+      ? `Original: ${d.currency_symbol}${d.total_cost} ${d.currency_code} → converted to ${acctCur.symbol}${repairCost.toFixed(2)} ${acctCur.code}`
+      : ''),
   };
 
   // Save to Supabase + localStorage
@@ -3133,13 +3275,13 @@ async function renderRepairsDashboard() {
   const avg = total ? Math.round(totalSpent/total) : 0;
 
   document.getElementById('rm-total').textContent = total;
-  document.getElementById('rm-spent').textContent = '$' + Math.round(totalSpent).toLocaleString();
-  document.getElementById('rm-thisyear').textContent = '$' + Math.round(thisYear).toLocaleString();
-  document.getElementById('rm-avg').textContent = '$' + avg.toLocaleString();
+  document.getElementById('rm-spent').textContent = formatMoney(totalSpent);
+  document.getElementById('rm-thisyear').textContent = formatMoney(thisYear);
+  document.getElementById('rm-avg').textContent = formatMoney(avg);
 
   renderAlerts(repairs);
   renderCostByVehicle(repairs);
-  renderRepairHistory();
+  renderRepairHistory(repairs); // pass fetched repairs — no second round-trip
   renderSchedRepairs();
   populateVehicleSelect();
 }
@@ -3242,8 +3384,8 @@ function renderCostByVehicle(repairs) {
     </div>`).join('');
 }
 
-function renderRepairHistory() {
-  const repairs = getRepairs();
+async function renderRepairHistory(repairs) {
+  if (!repairs) repairs = await getRepairs(); // fetch if not passed in
   const tbody = document.getElementById('repairs-tbody');
   if (!tbody) return;
 
@@ -3583,6 +3725,158 @@ async function saveEditVehicle() {
   toast('✅ ' + (fleet[idx].model || 'Vehicle') + ' updated.');
   if (activeSection === 'fleet') renderTable();
   else if (activeSection === 'dashboard') renderUnifiedDashboard();
+}
+
+
+// ═══════════ CURRENCY SYSTEM ═══════════
+// Stored as "CODE|SYMBOL|LOCALE" e.g. "EUR|€|es"
+function getAccountCurrency() {
+  const stored = localStorage.getItem('fy_account_currency');
+  if (stored) {
+    const [code, symbol, locale] = stored.split('|');
+    return { code, symbol, locale: locale || 'en' };
+  }
+  return { code: 'USD', symbol: '$', locale: 'en' };
+}
+
+function setAccountCurrency(val) {
+  // val = "USD|$|en"
+  localStorage.setItem('fy_account_currency', val);
+}
+
+// Exchange rates vs USD (approximate, update quarterly)
+// In production you'd fetch from an exchange rate API
+const FX_RATES = {
+  USD:1, EUR:0.92, GBP:0.79, CAD:1.36, AUD:1.53,
+  MXN:17.1, BRL:5.0, CHF:0.90, JPY:149, CNY:7.2,
+  INR:83, SEK:10.5, NOK:10.6, DKK:6.9, PLN:4.0,
+  ZAR:18.6, AED:3.67, SGD:1.34, NZD:1.63
+};
+
+// Convert amount from one currency to account currency
+function convertToAccountCurrency(amount, fromCode) {
+  const acct = getAccountCurrency();
+  if (!fromCode || fromCode === acct.code) return amount;
+  const usd = amount / (FX_RATES[fromCode] || 1);
+  return usd * (FX_RATES[acct.code] || 1);
+}
+
+// Format a number for display using the correct locale and symbol
+// invoiceLocale: the locale the invoice was in (for parsing)
+// acct: account currency for display
+function formatMoney(amount, opts = {}) {
+  const acct = getAccountCurrency();
+  const symbol = opts.symbol || acct.symbol;
+  const locale = opts.locale || acct.locale;
+
+  // Spanish/Portuguese use period as thousands sep, comma as decimal
+  // English uses comma as thousands sep, period as decimal
+  const localeCode = locale === 'es' ? 'es-ES' : locale === 'pt' ? 'pt-BR' : 'en-US';
+
+  const formatted = parseFloat(amount || 0).toLocaleString(localeCode, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  return symbol + formatted;
+}
+
+// Parse a number that might be in Spanish format (1.234,56) or English (1,234.56)
+function parseLocalizedNumber(str, locale) {
+  if (!str) return 0;
+  str = String(str).trim();
+  if (locale === 'es' || locale === 'pt') {
+    // Spanish: 1.234,56 → remove dots, replace comma with dot
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else {
+    // English: 1,234.56 → remove commas
+    str = str.replace(/,/g, '');
+  }
+  return parseFloat(str) || 0;
+}
+
+// ═══════════ CURRENCY IN SETTINGS ═══════════
+function loadCurrencySetting() {
+  const cur = localStorage.getItem('fy_account_currency') || 'USD|$|en';
+  const sel = document.getElementById('set-currency');
+  if (!sel) return;
+  // Find matching option by code prefix
+  const code = cur.split('|')[0];
+  Array.from(sel.options).forEach(o => {
+    if (o.value.startsWith(code + '|')) sel.value = o.value;
+  });
+}
+
+// ═══════════ INVOICE EDIT FUNCTIONS ═══════════
+function toggleScanEdit() {
+  const viewMode = document.getElementById('sr-view-mode');
+  const editMode = document.getElementById('sr-edit-mode');
+  const btn = document.getElementById('sr-edit-btn');
+  const isEditing = editMode.style.display !== 'none';
+
+  if (isEditing) {
+    // Switching back to view — apply edits first
+    applyScanEdits();
+    editMode.style.display = 'none';
+    viewMode.style.display = '';
+    btn.textContent = '✏️ Edit';
+  } else {
+    // Switch to edit mode — pre-fill fields from current result
+    const d = window._lastScanResult;
+    if (!d) return;
+    const acct = getAccountCurrency();
+
+    document.getElementById('se-vehicle').value = d.vehicle || '';
+    document.getElementById('se-date').value = d.date || new Date().toISOString().split('T')[0];
+    document.getElementById('se-cost').value = d.total_cost || 0;
+    document.getElementById('se-category').value = d.category || 'Service';
+    document.getElementById('se-notes').value = d.notes || '';
+
+    // Items: join array or use string
+    const items = Array.isArray(d.items) ? d.items.join('\n') : (d.items || '');
+    document.getElementById('se-items').value = items;
+
+    // Set invoice currency selector
+    const invCode = d.currency_code || acct.code;
+    const sel = document.getElementById('se-currency');
+    Array.from(sel.options).forEach(o => {
+      if (o.value.startsWith(invCode + '|')) sel.value = o.value;
+    });
+
+    editMode.style.display = '';
+    viewMode.style.display = 'none';
+    btn.textContent = '✓ Done Editing';
+  }
+}
+
+function applyScanEdits() {
+  const d = window._lastScanResult;
+  if (!d) return;
+
+  const [invCode, invSymbol] = (document.getElementById('se-currency')?.value || 'USD|$').split('|');
+  const rawCost = parseFloat(document.getElementById('se-cost')?.value || 0);
+  const itemsText = document.getElementById('se-items')?.value || '';
+  const items = itemsText.split('\n').map(s => s.trim()).filter(Boolean);
+
+  // Update the result object
+  d.vehicle = document.getElementById('se-vehicle')?.value || d.vehicle;
+  d.date = document.getElementById('se-date')?.value || d.date;
+  d.total_cost = rawCost;
+  d.currency_code = invCode;
+  d.currency_symbol = invSymbol;
+  d.category = document.getElementById('se-category')?.value || d.category;
+  d.notes = document.getElementById('se-notes')?.value || d.notes;
+  d.items = items;
+  d._edited = true;
+
+  window._lastScanResult = d;
+
+  // Re-render view
+  renderScanResult(d);
+
+  // Switch back to view mode
+  document.getElementById('sr-edit-mode').style.display = 'none';
+  document.getElementById('sr-view-mode').style.display = '';
+  document.getElementById('sr-edit-btn').textContent = '✏️ Edit';
 }
 
 // ═══════════ INIT ═══════════
