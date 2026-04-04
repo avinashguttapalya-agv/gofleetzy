@@ -1095,6 +1095,64 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
   </div>
 </div>
 
+<!-- EDIT VEHICLE MODAL -->
+<div class="overlay" id="modal-edit-vehicle">
+  <div class="modal" style="width:680px">
+    <div class="modal-hd">
+      <div class="modal-title">✏️ Edit Vehicle</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-vehicle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ev-id"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">Make &amp; Model</label><input class="form-input" id="ev-model"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Brand</label>
+          <select class="form-select" id="ev-brand">
+            <option value="">Select</option>
+            <option value="toyota">Toyota</option><option value="lexus">Lexus</option>
+            <option value="honda">Honda</option><option value="mazda">Mazda</option>
+            <option value="subaru">Subaru</option><option value="hyundai">Hyundai</option>
+            <option value="kia">Kia</option><option value="nissan">Nissan</option>
+            <option value="ford">Ford</option><option value="chevrolet">Chevrolet</option>
+            <option value="gmc">GMC</option><option value="jeep">Jeep</option>
+            <option value="bmw">BMW</option><option value="mercedes">Mercedes-Benz</option>
+            <option value="audi">Audi</option><option value="volkswagen">Volkswagen</option>
+            <option value="landrover">Land Rover</option><option value="fiat">Fiat</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Type</label>
+          <select class="form-select" id="ev-fueltype">
+            <option value="">Select</option><option value="gasoline">Gasoline</option>
+            <option value="hybrid">Hybrid</option><option value="diesel">Diesel</option>
+            <option value="phev">PHEV</option><option value="bev">Electric (BEV)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Year</label><input class="form-input" id="ev-year" type="number" min="1990" max="2030"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Mileage (km)</label><input class="form-input" id="ev-mileage" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Annual km</label><input class="form-input" id="ev-annual" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Maint. Cost ($/yr)</label><input class="form-input" id="ev-maint" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Vehicle Value ($)</label><input class="form-input" id="ev-value" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Cost ($/yr)</label><input class="form-input" id="ev-fuelcost" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Repairs (12mo)</label><input class="form-input" id="ev-repairs" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Downtime Days/yr</label><input class="form-input" id="ev-downtime" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Condition</label>
+          <select class="form-select" id="ev-condition">
+            <option value="">Select</option><option value="excellent">Excellent</option>
+            <option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Department</label><input class="form-input" id="ev-dept"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Expected km/yr</label><input class="form-input" id="ev-expected" type="number" min="0"/></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-vehicle')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveEditVehicle()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:380px">
@@ -1305,8 +1363,8 @@ function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Anon key is safe to hardcode — it is designed to be public.
 // RLS policies protect all data. Only service_role key must stay secret.
 // Replace these with your actual Supabase project URL and anon key.
-const SB_URL = 'YOUR_SUPABASE_URL';          // e.g. https://xxxx.supabase.co
-const SB_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // eyJhbGc... from Project Settings → API
+const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
 
 function initSupabase() {
   // Use saved override first, then fall back to the hardcoded defaults above
@@ -1844,7 +1902,8 @@ async function renderTable() {
       <td><div class="score-wrap"><div class="score-bg"><div class="score-fill" style="width:${s}%;background:${fc}"></div></div><span class="score-num" style="color:${fc}">${s}</span></div></td>
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
       <td style="display:flex;gap:5px;padding:12px 8px">
-        <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Breakdown">⁉</button>
+        <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Score breakdown">⁉</button>
+        <button onclick="editVehicle(${v.id})" class="btn btn-ghost btn-sm" title="Edit vehicle">✏️</button>
         <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
       </td>
     </tr>`;
@@ -2659,6 +2718,7 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
       <span class="vcmd-cost">${vCost>0?'$'+Math.round(vCost).toLocaleString():'—'}</span>
       <div class="vcmd-actions">
         <button class="vcmd-btn" onclick="showBreakdown(${v.id})">Score</button>
+        <button class="vcmd-btn" onclick="editVehicle(${v.id})">Edit</button>
         <button class="vcmd-btn" onclick="nav('invoice')">Invoice</button>
       </div>
     </div>`;
@@ -3276,6 +3336,55 @@ function saveAuthSupabase() {
   } else {
     toast('Connection failed — check your URL and anon key.');
   }
+}
+
+
+// ═══════════ EDIT VEHICLE ═══════════
+async function editVehicle(id) {
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === String(id));
+  if (!v) { toast('Vehicle not found.'); return; }
+
+  document.getElementById('ev-id').value    = id;
+  document.getElementById('ev-model').value = v.model    || '';
+  document.getElementById('ev-brand').value = v.brand    || '';
+  document.getElementById('ev-fueltype').value = v.fueltype || '';
+  document.getElementById('ev-year').value  = v.year     || '';
+  document.getElementById('ev-mileage').value = v.mileage || '';
+  document.getElementById('ev-annual').value  = v.annual  || '';
+  document.getElementById('ev-maint').value   = v.maint   || '';
+  document.getElementById('ev-value').value   = v.value   || '';
+  document.getElementById('ev-fuelcost').value= v.fuelcost|| '';
+  document.getElementById('ev-repairs').value = v.repairs || '';
+  document.getElementById('ev-downtime').value= v.downtime|| '';
+  document.getElementById('ev-condition').value = v.condition || '';
+  document.getElementById('ev-dept').value    = v.dept    || '';
+  document.getElementById('ev-expected').value= v.expected|| '';
+
+  openModal('modal-edit-vehicle');
+}
+
+async function saveEditVehicle() {
+  const id = document.getElementById('ev-id').value;
+  if (!id) { toast('No vehicle selected.'); return; }
+
+  const fleet = await getFleet();
+  const idx = fleet.findIndex(x => String(x.id) === String(id));
+  if (idx === -1) { toast('Vehicle not found.'); return; }
+
+  const fields = ['model','brand','fueltype','year','mileage','annual',
+                  'maint','value','fuelcost','repairs','downtime','condition','dept','expected'];
+  fields.forEach(f => {
+    const el = document.getElementById('ev-' + f);
+    if (el) fleet[idx][f] = el.value;
+  });
+
+  _fleetCache = null;
+  await saveFleet(fleet);
+  closeModal('modal-edit-vehicle');
+  toast('✅ ' + (fleet[idx].model || 'Vehicle') + ' updated.');
+  if (activeSection === 'fleet') renderTable();
+  else if (activeSection === 'dashboard') renderUnifiedDashboard();
 }
 
 // ═══════════ INIT ═══════════
