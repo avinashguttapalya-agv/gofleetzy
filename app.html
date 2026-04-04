@@ -2520,8 +2520,48 @@ function renderPlanUI() {
 
 
 // ═══════════ SERVICE RECORDS DATA ═══════════
-function getServiceRecords() { return getStore('fy_svc_'+(session?.accountId||'')) || []; }
-function saveServiceRecords(r) { setStore('fy_svc_'+(session?.accountId||''), r); }
+async function getServiceRecords() {
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      const { data, error } = await sb
+        .from('service_schedule')
+        .select('*')
+        .eq('account_id', session.accountId);
+      if (error) throw error;
+      return (data || []).map(r => ({
+        vehicleId:    r.vehicle_id,
+        vehicleModel: r.vehicle_model,
+        lastDate:     r.last_date,
+        nextDate:     r.next_date,
+        intervalDays: r.interval_days,
+        notes:        r.notes || ''
+      }));
+    } catch(e) { console.warn('[Service] Supabase read failed:', e.message); }
+  }
+  return getStore('fy_svc_'+(session?.accountId||'')) || [];
+}
+
+async function saveServiceRecords(records) {
+  setStore('fy_svc_'+(session?.accountId||''), records);
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      // Delete all then re-insert (service schedule is small, simplest approach)
+      await sb.from('service_schedule').delete().eq('account_id', session.accountId);
+      if (records.length) {
+        const rows = records.map(r => ({
+          account_id:    session.accountId,
+          vehicle_id:    r.vehicleId,
+          vehicle_model: r.vehicleModel,
+          last_date:     r.lastDate,
+          next_date:     r.nextDate,
+          interval_days: r.intervalDays,
+          notes:         r.notes || ''
+        }));
+        await sb.from('service_schedule').insert(rows);
+      }
+    } catch(e) { console.warn('[Service] Supabase save failed:', e.message); }
+  }
+}
 
 function openAddServiceModal() {
   getFleet().then(fleet => {
@@ -2678,7 +2718,7 @@ function applyPlateResult() {
 // ═══════════ UNIFIED DASHBOARD RENDER ═══════════
 async function renderUnifiedDashboard() {
   const fleet = await getFleet();
-  const repairs = getRepairs();
+  const repairs = await getRepairs();
   const services = getServiceRecords();
   const now = new Date();
   const CY = now.getFullYear();
@@ -2763,7 +2803,7 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
   }).join('');
 }
 
-function renderDashboardAlerts(repairs, scored, services, now) {
+async function renderDashboardAlerts(repairs, scored, services, now) {
   const alerts = [];
   const thirtyDaysAgo = new Date(now - 30*86400000);
   const ninetyDaysAgo = new Date(now - 90*86400000);
@@ -2847,13 +2887,69 @@ function renderServiceTable(services, fleet, now) {
 }
 
 // ═══════════ REPAIRS DATA LAYER ═══════════
-function getRepairs() {
-  const key = 'fy_repairs_' + (session?.accountId||'');
-  return getStore(key) || [];
+async function getRepairs() {
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      const { data, error } = await sb
+        .from('repair_records')
+        .select('*')
+        .eq('account_id', session.accountId)
+        .order('repair_date', { ascending: false });
+      if (error) throw error;
+      // Normalise column names to what the app expects (repair_date → date, items text → array)
+      return (data || []).map(r => ({
+        id:           r.id,
+        vehicleId:    r.vehicle_id,
+        vehicleModel: r.vehicle_model,
+        date:         r.repair_date,
+        category:     r.category,
+        items:        r.items || '',
+        cost:         parseFloat(r.cost || 0),
+        notes:        r.notes || ''
+      }));
+    } catch(e) { console.warn('[Repairs] Supabase read failed, using localStorage:', e.message); }
+  }
+  return getStore('fy_repairs_' + (session?.accountId||'')) || [];
 }
-function saveRepairs(r) {
-  const key = 'fy_repairs_' + (session?.accountId||'');
-  setStore(key, r);
+
+async function saveRepairs(repairs) {
+  // localStorage always (fast, offline backup)
+  setStore('fy_repairs_' + (session?.accountId||''), repairs);
+  // Supabase sync handled per-operation (addRepair / deleteRepair)
+}
+
+async function addRepairToStore(repair) {
+  // localStorage
+  const local = getStore('fy_repairs_' + (session?.accountId||'')) || [];
+  local.unshift(repair);
+  setStore('fy_repairs_' + (session?.accountId||''), local);
+  // Supabase
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      await sb.from('repair_records').insert({
+        id:            repair.id,
+        account_id:    session.accountId,
+        vehicle_id:    repair.vehicleId,
+        vehicle_model: repair.vehicleModel,
+        repair_date:   repair.date,
+        category:      repair.category,
+        items:         Array.isArray(repair.items) ? repair.items.join(', ') : (repair.items || ''),
+        cost:          parseFloat(repair.cost || 0),
+        notes:         repair.notes || ''
+      });
+    } catch(e) { console.warn('[Repairs] Supabase insert failed:', e.message); }
+  }
+}
+
+async function deleteRepairFromStore(id) {
+  // localStorage
+  const local = (getStore('fy_repairs_' + (session?.accountId||'')) || []).filter(r => r.id !== id);
+  setStore('fy_repairs_' + (session?.accountId||''), local);
+  // Supabase
+  if (isSupabaseReady() && session?.accountId) {
+    try { await sb.from('repair_records').delete().eq('id', id).eq('account_id', session.accountId); }
+    catch(e) { console.warn('[Repairs] Supabase delete failed:', e.message); }
+  }
 }
 
 // ═══════════ INVOICE SCANNER ═══════════
@@ -2992,7 +3088,6 @@ async function applyInvoiceToVehicle() {
   const v = fleet.find(x => String(x.id) === String(vehicleId));
   if (!v) { toast('Vehicle not found.'); return; }
 
-  const repairs = getRepairs();
   const newRepair = {
     id: Date.now(),
     vehicleId: parseInt(vehicleId),
@@ -3003,12 +3098,14 @@ async function applyInvoiceToVehicle() {
     cost: parseFloat(d.total_cost||0),
     notes: d.notes || '',
   };
-  repairs.unshift(newRepair);
-  saveRepairs(repairs);
+
+  // Save to Supabase + localStorage
+  await addRepairToStore(newRepair);
 
   // Auto-update vehicle maintenance cost (rolling 12-month sum)
+  const allRepairs = await getRepairs();
   const yearAgo = new Date(); yearAgo.setFullYear(yearAgo.getFullYear()-1);
-  const yearCost = repairs
+  const yearCost = allRepairs
     .filter(r => String(r.vehicleId) === String(vehicleId) && new Date(r.date) >= yearAgo)
     .reduce((s,r) => s + (parseFloat(r.cost)||0), 0);
 
@@ -3027,8 +3124,8 @@ async function applyInvoiceToVehicle() {
 }
 
 // ═══════════ REPAIRS DASHBOARD ═══════════
-function renderRepairsDashboard() {
-  const repairs = getRepairs();
+async function renderRepairsDashboard() {
+  const repairs = await getRepairs();
   const CY = new Date().getFullYear();
   const total = repairs.length;
   const totalSpent = repairs.reduce((s,r) => s+(parseFloat(r.cost)||0), 0);
@@ -3047,7 +3144,7 @@ function renderRepairsDashboard() {
   populateVehicleSelect();
 }
 
-function renderAlerts(repairs) {
+async function renderAlerts(repairs) {
   const alerts = [];
   const now = new Date();
   const T = getAlertThresholds();
@@ -3056,7 +3153,8 @@ function renderAlerts(repairs) {
   const recurringWindow = new Date(now - T.recurringDays*86400000);
 
   // ── Scheduled repair alerts ──────────────────────────────
-  getSchedRepairs().forEach(sr => {
+  const schedRepairs = await getSchedRepairs();
+  schedRepairs.forEach(sr => {
     if (sr.status === 'done') return;
     const daysLeft = Math.ceil((new Date(sr.scheduledDate) - now) / 86400000);
     if (daysLeft < 0) {
@@ -3171,9 +3269,8 @@ function renderRepairHistory() {
   </tr>`).join('');
 }
 
-function deleteRepair(id) {
-  let r = getRepairs().filter(x => x.id !== id);
-  saveRepairs(r);
+async function deleteRepair(id) {
+  await deleteRepairFromStore(id);
   renderRepairsDashboard();
   toast('Repair record deleted.');
 }
@@ -3248,8 +3345,74 @@ function maybeEmailAlerts(alerts) {
 }
 
 // ═══════════ SCHEDULED REPAIRS ═══════════
-function getSchedRepairs() { return getStore('fy_sched_'+(session?.accountId||'')) || []; }
-function saveSchedRepairs(r){ setStore('fy_sched_'+(session?.accountId||''), r); }
+async function getSchedRepairs() {
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      const { data, error } = await sb
+        .from('scheduled_repairs')
+        .select('*')
+        .eq('account_id', session.accountId)
+        .order('scheduled_date', { ascending: true });
+      if (error) throw error;
+      return (data || []).map(r => ({
+        id:            r.id,
+        vehicleId:     r.vehicle_id,
+        vehicleModel:  r.vehicle_model,
+        category:      r.category,
+        scheduledDate: r.scheduled_date,
+        notes:         r.notes || '',
+        estimatedCost: parseFloat(r.estimated_cost || 0),
+        status:        r.status || 'pending'
+      }));
+    } catch(e) { console.warn('[SchedRepairs] Supabase read failed:', e.message); }
+  }
+  return getStore('fy_sched_'+(session?.accountId||'')) || [];
+}
+
+async function saveSchedRepairs(records) {
+  setStore('fy_sched_'+(session?.accountId||''), records);
+  // Individual operations handle Supabase (add/delete/update per item)
+}
+
+async function addSchedRepairToStore(r) {
+  const local = getStore('fy_sched_'+(session?.accountId||'')) || [];
+  local.push(r);
+  setStore('fy_sched_'+(session?.accountId||''), local);
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      await sb.from('scheduled_repairs').insert({
+        id:             r.id,
+        account_id:     session.accountId,
+        vehicle_id:     r.vehicleId,
+        vehicle_model:  r.vehicleModel,
+        category:       r.category,
+        scheduled_date: r.scheduledDate,
+        notes:          r.notes || '',
+        estimated_cost: r.estimatedCost || 0,
+        status:         r.status || 'pending'
+      });
+    } catch(e) { console.warn('[SchedRepairs] Supabase insert failed:', e.message); }
+  }
+}
+
+async function updateSchedRepairStatus(id, status) {
+  const local = (getStore('fy_sched_'+(session?.accountId||'')) || [])
+    .map(x => x.id === id ? {...x, status} : x);
+  setStore('fy_sched_'+(session?.accountId||''), local);
+  if (isSupabaseReady() && session?.accountId) {
+    try { await sb.from('scheduled_repairs').update({ status }).eq('id', id).eq('account_id', session.accountId); }
+    catch(e) { console.warn('[SchedRepairs] Supabase update failed:', e.message); }
+  }
+}
+
+async function deleteSchedRepairFromStore(id) {
+  const local = (getStore('fy_sched_'+(session?.accountId||'')) || []).filter(x => x.id !== id);
+  setStore('fy_sched_'+(session?.accountId||''), local);
+  if (isSupabaseReady() && session?.accountId) {
+    try { await sb.from('scheduled_repairs').delete().eq('id', id).eq('account_id', session.accountId); }
+    catch(e) { console.warn('[SchedRepairs] Supabase delete failed:', e.message); }
+  }
+}
 
 function openScheduleRepairModal() {
   getFleet().then(fleet => {
@@ -3265,43 +3428,40 @@ function openScheduleRepairModal() {
   openModal('modal-sched-repair');
 }
 
-function saveSchedRepair() {
+async function saveSchedRepair() {
   const vid   = document.getElementById('sched-vid')?.value;
   const cat   = document.getElementById('sched-cat')?.value   || 'Service';
   const date  = document.getElementById('sched-date')?.value;
   const notes = document.getElementById('sched-notes')?.value.trim() || '';
   const cost  = parseFloat(document.getElementById('sched-cost')?.value) || 0;
   if (!vid || !date) { toast('Please select a vehicle and date.'); return; }
-  getFleet().then(fleet => {
-    const v = fleet.find(x => String(x.id) === String(vid));
-    const records = getSchedRepairs();
-    records.push({ id:Date.now(), vehicleId:parseInt(vid), vehicleModel:v?.model||'Unknown',
-      category:cat, scheduledDate:date, notes, estimatedCost:cost, status:'pending' });
-    saveSchedRepairs(records);
-    closeModal('modal-sched-repair');
-    toast('✅ Repair scheduled for ' + (v?.model||'vehicle'));
-    renderSchedRepairs();
-    // Immediately check if this new item should trigger an alert
-    renderRepairsDashboard();
-  });
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === String(vid));
+  const newSched = { id:Date.now(), vehicleId:parseInt(vid), vehicleModel:v?.model||'Unknown',
+    category:cat, scheduledDate:date, notes, estimatedCost:cost, status:'pending' };
+  await addSchedRepairToStore(newSched);
+  closeModal('modal-sched-repair');
+  toast('✅ Repair scheduled for ' + (v?.model||'vehicle'));
+  renderSchedRepairs();
+  renderRepairsDashboard();
 }
 
-function deleteSchedRepair(id) {
-  saveSchedRepairs(getSchedRepairs().filter(x => x.id !== id));
+async function deleteSchedRepair(id) {
+  await deleteSchedRepairFromStore(id);
   renderSchedRepairs();
 }
-function markSchedDone(id) {
-  saveSchedRepairs(getSchedRepairs().map(x => x.id===id ? {...x, status:'done'} : x));
+async function markSchedDone(id) {
+  await updateSchedRepairStatus(id, 'done');
   renderSchedRepairs();
   toast('Marked as done.');
 }
 
-function renderSchedRepairs() {
+async function renderSchedRepairs() {
   const tbody = document.getElementById('sched-tbody');
   if (!tbody) return;
   const T = getAlertThresholds();
   const now = new Date();
-  const records = getSchedRepairs();
+  const records = await getSchedRepairs();
 
   if (!records.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--stone)">No scheduled repairs. Click "+ Schedule Repair" to add one.</td></tr>';
