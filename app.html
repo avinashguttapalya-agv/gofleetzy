@@ -1128,6 +1128,60 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
   </div>
 </div>
 
+
+<!-- EDIT VEHICLE MODAL -->
+<div class="overlay" id="modal-edit-vehicle">
+  <div class="modal" style="width:680px">
+    <div class="modal-hd">
+      <div class="modal-title">✏️ Edit Vehicle</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-vehicle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-vehicle-id"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">Make & Model</label><input class="form-input" id="e-model" placeholder="e.g. Toyota Corolla"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Brand</label>
+          <select class="form-select" id="e-brand">
+            <option value="">Select brand</option>
+            <option value="toyota">Toyota</option><option value="lexus">Lexus</option><option value="honda">Honda</option><option value="acura">Acura</option>
+            <option value="mazda">Mazda</option><option value="subaru">Subaru</option><option value="hyundai">Hyundai</option><option value="kia">Kia</option>
+            <option value="nissan">Nissan</option><option value="ford">Ford</option><option value="chevrolet">Chevrolet</option><option value="gmc">GMC</option>
+            <option value="dodge">Dodge</option><option value="ram">RAM</option><option value="jeep">Jeep</option><option value="bmw">BMW</option>
+            <option value="mercedes">Mercedes-Benz</option><option value="audi">Audi</option><option value="volkswagen">Volkswagen</option>
+            <option value="landrover">Land Rover</option><option value="fiat">Fiat</option><option value="alfa">Alfa Romeo</option><option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Type</label>
+          <select class="form-select" id="e-fueltype">
+            <option value="">Select</option><option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
+            <option value="diesel">Diesel</option><option value="phev">PHEV</option><option value="bev">Electric (BEV)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Year</label><input class="form-input" id="e-year" type="number" min="1990" max="2030"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Mileage (km)</label><input class="form-input" id="e-mileage" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Annual km</label><input class="form-input" id="e-annual" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Maint. Cost ($/yr)</label><input class="form-input" id="e-maint" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Vehicle Value ($)</label><input class="form-input" id="e-value" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Cost ($/yr)</label><input class="form-input" id="e-fuelcost" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Repairs (last 12mo)</label><input class="form-input" id="e-repairs" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Downtime Days/yr</label><input class="form-input" id="e-downtime" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Condition</label>
+          <select class="form-select" id="e-condition">
+            <option value="">Select</option><option value="excellent">Excellent</option><option value="good">Good</option>
+            <option value="fair">Fair</option><option value="poor">Poor</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Department</label><input class="form-input" id="e-dept"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Expected km/yr</label><input class="form-input" id="e-expected" type="number" min="0"/></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-vehicle')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveEditVehicle()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:380px">
@@ -1204,27 +1258,25 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 <div class="toast" id="toast"></div>
 
 
+<script>
 // ═══════════ BACKEND CONFIG ═══════════
 // Point this to your backend URL.
-// During GitHub Pages testing: use your Render.com URL
-// After going live: use https://api.gofleetzy.com
+// GitHub Pages testing → use your Render.com URL
+// Production → use https://api.gofleetzy.com
 const API_BASE = (function() {
   const stored = localStorage.getItem('fy_api_base');
   if (stored) return stored;
-  // Auto-detect: if on localhost use local backend, else use production
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
     return 'http://localhost:3001';
   }
-  return 'https://fleetzy-backend.onrender.com'; // ← update after deploying backend
+  return 'https://fleetzy-backend.onrender.com'; // ← update to your Render URL
 })();
 
-// Allow overriding API base from Settings
 function setApiBase(url) {
   localStorage.setItem('fy_api_base', url.replace(/\/$/, ''));
   location.reload();
 }
 
-<script>
 // ═══════════ DATA LAYER ═══════════
 const CY = new Date().getFullYear();
 
@@ -1496,7 +1548,10 @@ async function doSignUp() {
       // Step 1: Create auth user — DB trigger auto-creates profile (see fix-profile-creation.sql)
       const { data, error } = await sb.auth.signUp({
         email, password: pass,
-        options: { data: { name, org, plan } }
+        options: {
+          data: { name, org, plan },
+          emailRedirectTo: window.location.origin + '/welcome.html'
+        }
       });
 
       if (error) {
@@ -1705,7 +1760,9 @@ function fillColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--gre
 
 // ═══════════ APP NAV ═══════════
 let activeSection = 'dashboard';
-function nav(sec) {
+let _navHistory = [];
+
+function nav(sec, pushState = true) {
   // Role & plan gates on navigation
   const navGates = {
     add:      () => !can('addVehicle'),
@@ -1738,6 +1795,34 @@ function nav(sec) {
   if(sec==='settings') { const u=getStore('fy_sb_url')||''; const k=getStore('fy_sb_key')||''; if(document.getElementById('set-sb-url')) { document.getElementById('set-sb-url').value=u; document.getElementById('set-sb-key').value=k; if(u&&k){document.getElementById('sb-status').textContent='✅ Connected';document.getElementById('sb-status').style.color='var(--green)';}}};
   if(sec==='settings') loadSettings();
   if(sec==='repairs') renderRepairsDashboard();
+
+  // Push to browser history so back button works
+  if (pushState) {
+    _navHistory.push(sec);
+    try { history.pushState({ sec }, '', '#' + sec); } catch(e) {}
+  }
+}
+
+// Handle browser back button
+window.addEventListener('popstate', (e) => {
+  if (!session) return;
+  const sec = e.state?.sec;
+  if (sec) {
+    nav(sec, false);
+  } else if (_navHistory.length > 1) {
+    _navHistory.pop();
+    nav(_navHistory[_navHistory.length - 1], false);
+  } else {
+    const leave = confirm('Leave Fleetzy? Any unsaved changes will be lost.');
+    if (!leave) history.pushState({ sec: activeSection }, '', '#' + activeSection);
+  }
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (session && document.getElementById('app-screen')?.style.display === 'grid') {
+    e.preventDefault(); e.returnValue = '';
+  }
+});
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
 }
@@ -1810,6 +1895,7 @@ async function renderTable() {
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
       <td style="display:flex;gap:5px;padding:12px 8px">
         <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Breakdown">⁉</button>
+        <button onclick="editVehicle(${v.id})" class="btn btn-ghost btn-sm" title="Edit">✏️</button>
         <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
       </td>
     </tr>`;
@@ -2625,6 +2711,7 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
       <span class="vcmd-cost">${vCost>0?'$'+Math.round(vCost).toLocaleString():'—'}</span>
       <div class="vcmd-actions">
         <button class="vcmd-btn" onclick="showBreakdown(${v.id})">Score</button>
+        <button class="vcmd-btn" onclick="editVehicle(${v.id})">Edit</button>
         <button class="vcmd-btn" onclick="nav('invoice')">Invoice</button>
       </div>
     </div>`;
@@ -2983,6 +3070,9 @@ function renderAlerts(repairs) {
   const countEl = document.getElementById('alerts-count-label');
   countEl.textContent = alerts.length ? `${alerts.length} alert${alerts.length!==1?'s':''}` : 'All clear';
 
+  // Send email notifications for active alerts (debounced, max 1/24h)
+  maybeEmailAlerts(alerts);
+
   if (!alerts.length) {
     listEl.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>No alerts — fleet looks healthy</div>';
     return;
@@ -3143,6 +3233,113 @@ function loadAlertThresholds() {
     const el = document.getElementById(id);
     if (el) el.value = val;
   });
+}
+
+
+// ═══════════ EDIT VEHICLE ═══════════
+async function editVehicle(id) {
+  if(gate('', 'addVehicle')) return; // same permission as add
+  const fleet = await getFleet();
+  const v = fleet.find(x => x.id === id);
+  if (!v) { toast('Vehicle not found.'); return; }
+
+  // Populate modal fields
+  document.getElementById('edit-vehicle-id').value = id;
+  document.getElementById('e-model').value = v.model || '';
+  document.getElementById('e-brand').value = v.brand || '';
+  document.getElementById('e-fueltype').value = v.fueltype || '';
+  document.getElementById('e-year').value = v.year || '';
+  document.getElementById('e-mileage').value = v.mileage || '';
+  document.getElementById('e-annual').value = v.annual || '';
+  document.getElementById('e-maint').value = v.maint || '';
+  document.getElementById('e-value').value = v.value || '';
+  document.getElementById('e-fuelcost').value = v.fuelcost || '';
+  document.getElementById('e-repairs').value = v.repairs || '';
+  document.getElementById('e-downtime').value = v.downtime || '';
+  document.getElementById('e-condition').value = v.condition || '';
+  document.getElementById('e-dept').value = v.dept || '';
+  document.getElementById('e-expected').value = v.expected || '';
+
+  openModal('modal-edit-vehicle');
+}
+
+async function saveEditVehicle() {
+  const id = parseInt(document.getElementById('edit-vehicle-id').value);
+  if (!id) { toast('No vehicle selected.'); return; }
+
+  const fleet = await getFleet();
+  const idx = fleet.findIndex(x => x.id === id);
+  if (idx === -1) { toast('Vehicle not found.'); return; }
+
+  // Update in place
+  fleet[idx] = {
+    ...fleet[idx],
+    model:    document.getElementById('e-model').value.trim() || fleet[idx].model,
+    brand:    document.getElementById('e-brand').value,
+    fueltype: document.getElementById('e-fueltype').value,
+    year:     document.getElementById('e-year').value,
+    mileage:  document.getElementById('e-mileage').value,
+    annual:   document.getElementById('e-annual').value,
+    maint:    document.getElementById('e-maint').value,
+    value:    document.getElementById('e-value').value,
+    fuelcost: document.getElementById('e-fuelcost').value,
+    repairs:  document.getElementById('e-repairs').value,
+    downtime: document.getElementById('e-downtime').value,
+    condition:document.getElementById('e-condition').value,
+    dept:     document.getElementById('e-dept').value.trim(),
+    expected: document.getElementById('e-expected').value,
+  };
+
+  await saveFleet(fleet);
+  _fleetCache = null;
+  closeModal('modal-edit-vehicle');
+  toast(`✅ ${fleet[idx].model} updated.`);
+  if (activeSection === 'fleet') await renderTable();
+  if (activeSection === 'dashboard') await renderUnifiedDashboard();
+}
+
+// ═══════════ ALERT EMAIL NOTIFICATIONS ═══════════
+// Sends alert emails via backend when threshold is breached
+// Called after renderAlerts detects issues
+async function sendAlertEmails(alerts) {
+  if (!alerts || !alerts.length) return;
+  if (!isSupabaseReady() || !session?.email) return;
+
+  // Only send if backend is configured
+  try {
+    const resp = await fetch(API_BASE + '/api/send-alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientEmail: session.email,
+        recipientName: session.name || session.email,
+        org: session.org || 'Your Fleet',
+        alerts: alerts.map(a => ({ type: a.type, title: a.title, desc: a.desc }))
+      })
+    });
+    if (resp.ok) console.log('Alert emails sent successfully');
+  } catch(e) {
+    console.warn('Alert email send failed (non-fatal):', e.message);
+    // Non-fatal — alerts still show in the UI
+  }
+}
+
+// Debounced alert email — only send once per session per set of alerts
+let _lastAlertHash = '';
+function maybeEmailAlerts(alerts) {
+  if (!alerts.length) return;
+  const hash = alerts.map(a => a.title).sort().join('|');
+  if (hash === _lastAlertHash) return; // Same alerts as last time, don't re-send
+  _lastAlertHash = hash;
+  // Check if enough time has passed since last email (24 hours)
+  const lastSent = getStore('fy_alert_last_sent');
+  const hoursSince = lastSent ? (Date.now() - lastSent) / 3600000 : 999;
+  if (hoursSince < 24) {
+    console.log(`Alert emails suppressed — last sent ${Math.round(hoursSince)}h ago`);
+    return;
+  }
+  setStore('fy_alert_last_sent', Date.now());
+  sendAlertEmails(alerts);
 }
 
 // ═══════════ INIT ═══════════
