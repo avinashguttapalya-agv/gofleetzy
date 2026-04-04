@@ -456,6 +456,15 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <button class="btn btn-primary" style="margin-top:6px" onclick="doSignUp()">Create Account →</button>
       <div class="auth-footer">Already have an account? <a href="#" onclick="switchAuthTab('signin');return false">Sign in</a></div>
     </div>
+
+    <!-- Supabase quick-connect (shown only if not connected) -->
+    <div id="auth-sb-setup" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--stone);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Connect Database</div>
+      <div class="form-group" style="margin-bottom:8px"><input class="form-input" id="auth-sb-url" placeholder="https://xxxx.supabase.co" style="font-size:13px"/></div>
+      <div class="form-group" style="margin-bottom:10px"><input class="form-input" id="auth-sb-key" placeholder="eyJhbGc... (anon key)" style="font-size:13px"/></div>
+      <button class="btn btn-ghost btn-sm" onclick="saveAuthSupabase()" style="width:100%">Save & Connect</button>
+    </div>
+
   </div>
 </div>
 
@@ -1285,16 +1294,31 @@ let _teamCache = null;
 function getStore(key) { try { return JSON.parse(localStorage.getItem(key)||'null'); } catch(e) { return null; } }
 function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 
+// ── Supabase credentials ─────────────────────────────────────────
+// Anon key is safe to hardcode — it is designed to be public.
+// RLS policies protect all data. Only service_role key must stay secret.
+// Replace these with your actual Supabase project URL and anon key.
+const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
+
 function initSupabase() {
-  const url = getStore('fy_sb_url');
-  const key = getStore('fy_sb_key');
-  if (url && key && window.supabase) {
+  // Use saved override first, then fall back to the hardcoded defaults above
+  const url = getStore('fy_sb_url') || SB_URL;
+  const key = getStore('fy_sb_key') || SB_ANON_KEY;
+
+  const configured = url && url !== 'YOUR_SUPABASE_URL' &&
+                     key && key !== 'YOUR_SUPABASE_ANON_KEY';
+
+  if (configured && window.supabase) {
     try {
       sb = window.supabase.createClient(url, key);
-      console.log('Supabase connected:', url);
+      // Also persist so Settings page shows the values
+      if (!getStore('fy_sb_url')) setStore('fy_sb_url', url);
+      if (!getStore('fy_sb_key')) setStore('fy_sb_key', key);
+      console.log('Supabase connected:', url.replace(/https:\/\/([^.]+).*/, '$1.supabase.co'));
       return true;
     } catch(e) {
-      console.error('Supabase init failed:', e);
+      console.error('Supabase init failed:', e.message);
       sb = null;
     }
   }
@@ -3223,6 +3247,30 @@ async function resetPassword() {
   toast('✅ Password reset email sent to ' + email + '. Check your inbox.');
 }
 
+
+// ═══════════ SUPABASE QUICK-CONNECT (from auth screen) ═══════════
+function saveAuthSupabase() {
+  const url = document.getElementById('auth-sb-url')?.value.trim();
+  const key = document.getElementById('auth-sb-key')?.value.trim();
+  if (!url || !key) { toast('Enter both URL and anon key.'); return; }
+  if (!url.includes('supabase.co')) { toast('URL should be https://xxxx.supabase.co'); return; }
+  setStore('fy_sb_url', url);
+  setStore('fy_sb_key', key);
+  const ok = initSupabase();
+  if (ok) {
+    document.getElementById('auth-sb-setup').style.display = 'none';
+    const diagEl = document.getElementById('auth-diag');
+    const diagText = document.getElementById('auth-diag-text');
+    const proj = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || '?';
+    diagText.innerHTML = '✅ Connected · Project: <strong>' + proj + '</strong>';
+    diagEl.style.color = 'var(--green)';
+    diagEl.style.display = 'block';
+    toast('✅ Supabase connected! You can now sign in.');
+  } else {
+    toast('Connection failed — check your URL and anon key.');
+  }
+}
+
 // ═══════════ INIT ═══════════
 (async function init() {
   // Step 1: boot Supabase if credentials saved
@@ -3234,14 +3282,18 @@ async function resetPassword() {
   setTimeout(() => {
     const diagEl = document.getElementById('auth-diag');
     const diagText = document.getElementById('auth-diag-text');
+    const sbSetup = document.getElementById('auth-sb-setup');
     if (!diagEl || !diagText) return;
     if (isSupabaseReady()) {
-      const url = getStore('fy_sb_url') || '';
+      const url = getStore('fy_sb_url') || SB_URL || '';
       const proj = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || '?';
       diagText.innerHTML = '✅ Supabase connected · Project: <strong>' + proj + '</strong>';
       diagEl.style.color = 'var(--green)';
+      if (sbSetup) sbSetup.style.display = 'none';
     } else {
-      diagText.innerHTML = '⚠️ Supabase not connected — go to Settings → Supabase Database after signing in with demo, or <a href="#" onclick="switchAuthTab(\'signup\');return false" style="color:var(--accent)">set it up now</a>';
+      diagText.textContent = '⚠️ Database not connected — enter your Supabase credentials below.';
+      diagEl.style.color = 'var(--yellow)';
+      if (sbSetup) sbSetup.style.display = 'block';
     }
     diagEl.style.display = 'block';
   }, 300);
