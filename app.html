@@ -748,7 +748,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">Backend API</div>
               <div style="font-size:13px;color:var(--stone);margin-bottom:10px">Your backend URL. Change this if you deploy to a custom domain.</div>
               <div style="display:flex;gap:8px;align-items:center">
-                <input class="form-input" id="set-api-base" placeholder="https://fleetzy-backend.onrender.com" style="flex:1"/>
+                <input class="form-input" id="set-api-base" placeholder="https://api.gofleetzy.com" style="flex:1"/>
                 <button class="btn btn-ghost btn-sm" onclick="setApiBase(document.getElementById('set-api-base').value)">Save & Reload</button>
               </div>
               <div style="font-size:11px;color:var(--stone);margin-top:6px">Current: <code id="api-base-display2"></code></div>
@@ -1191,7 +1191,7 @@ const API_BASE = (function() {
   const s = localStorage.getItem('fy_api_base');
   if (s) return s;
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3001';
-  return 'https://fleetzy-backend.onrender.com';
+  return 'https://api.gofleetzy.com';
 })();
 function setApiBase(u) { localStorage.setItem('fy_api_base', u.replace(/\/$/,'')); location.reload(); }
 
