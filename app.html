@@ -3241,7 +3241,7 @@ async function resetPassword() {
       diagText.innerHTML = '✅ Supabase connected · Project: <strong>' + proj + '</strong>';
       diagEl.style.color = 'var(--green)';
     } else {
-      diagText.innerHTML = '⚠️ Supabase not connected — go to Settings → Supabase Database after signing in with demo, or <a href="#" onclick="switchAuthTab('signup');return false" style="color:var(--accent)">set it up now</a>';
+      diagText.innerHTML = '⚠️ Supabase not connected — go to Settings → Supabase Database after signing in with demo, or <a href="#" onclick="switchAuthTab(\'signup\');return false" style="color:var(--accent)">set it up now</a>';
     }
     diagEl.style.display = 'block';
   }, 300);
