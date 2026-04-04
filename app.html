@@ -1798,7 +1798,9 @@ function fillColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--gre
 
 // ═══════════ APP NAV ═══════════
 let activeSection = 'dashboard';
-function nav(sec) {
+
+function nav(sec, opts) {
+  // opts.noHistory = true skips pushState (used by popstate handler)
   // Role & plan gates on navigation
   const navGates = {
     add:      () => !can('addVehicle'),
@@ -1833,7 +1835,35 @@ function nav(sec) {
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
+
+  // Save current section so reload restores it
+  try { localStorage.setItem('fy_last_sec', sec); } catch(e) {}
+
+  // Push to browser history so back button goes between sections (not out of app)
+  if (!opts?.noHistory) {
+    try { history.pushState({ sec }, '', '#' + sec); } catch(e) {}
+  }
 }
+
+// Back button — navigate within app, don't exit
+window.addEventListener('popstate', function(e) {
+  if (!session) return; // not logged in — let browser handle
+  const sec = e.state?.sec;
+  if (sec && document.getElementById('sec-' + sec)) {
+    nav(sec, { noHistory: true }); // navigate without pushing another state
+  } else {
+    // No known state — push current section back so we stay in app
+    history.pushState({ sec: activeSection }, '', '#' + activeSection);
+  }
+});
+
+// Warn before closing tab/window (not on every navigation)
+window.addEventListener('beforeunload', function(e) {
+  if (session && document.getElementById('app-screen').style.display === 'grid') {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // ═══════════ RENDER ═══════════
 async function renderDashboard() {
@@ -2162,9 +2192,17 @@ function launchApp(){
   document.getElementById('u-role').textContent=(session.plan||'trial').charAt(0).toUpperCase()+(session.plan||'trial').slice(1)+' plan';
   document.getElementById('u-avatar').textContent=(session.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('plan-tag').textContent=PLAN_LIMITS[session.plan||'trial'].label;
-  nav('dashboard');
+  // Restore last visited section (or default to dashboard)
+  const lastSec = localStorage.getItem('fy_last_sec') || 'dashboard';
+  const validSecs = ['dashboard','fleet','add','recs','import','livedata','team','reports','settings','invoice','repairs'];
+  const startSec = validSecs.includes(lastSec) ? lastSec : 'dashboard';
+
+  // Set initial history state
+  try { history.replaceState({ sec: startSec }, '', '#' + startSec); } catch(e) {}
+
+  nav(startSec, { noHistory: true });
   renderPlanUI();
-  renderUnifiedDashboard();
+  if (startSec !== 'dashboard') renderUnifiedDashboard(); // always render dashboard data
   fetchLiveData();
 }
 
