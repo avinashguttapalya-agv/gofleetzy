@@ -431,7 +431,11 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="si-email" type="email" placeholder="you@company.com" /></div>
       <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="si-password" type="password" placeholder="••••••••" /></div>
       <button class="btn btn-primary" style="margin-top:6px" onclick="doSignIn()">Sign In →</button>
-      <div class="auth-divider" style="margin-top:16px">or try demo</div>
+      <div id="auth-diag" style="margin-top:12px;font-size:11px;background:var(--mist);border-radius:7px;padding:8px 12px;display:none;line-height:1.5">
+        <div id="auth-diag-text"></div>
+      </div>
+      <div style="text-align:right;margin-top:8px"><a href="#" onclick="resetPassword();return false" style="font-size:12px;color:var(--stone)">Forgot password?</a></div>
+      <div class="auth-divider" style="margin-top:12px">or try demo</div>
       <button class="btn btn-ghost" onclick="demoLogin()">Load Demo Account</button>
     </div>
 
@@ -1188,9 +1192,14 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 <script>
 // ── Backend API URL — must match your Render.com service URL ──
 const API_BASE = (function() {
-  const s = localStorage.getItem('fy_api_base');
-  if (s) return s;
+  // Check if user manually set a backend URL in Settings
+  const saved = localStorage.getItem('fy_api_base');
+  if (saved) return saved;
+  // Local development
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3001';
+  // GitHub Pages (temporary — while gofleetzy.com DNS propagates)
+  if (location.hostname.includes('github.io')) return 'https://fleetzy-api.onrender.com';
+  // Production domain
   return 'https://api.gofleetzy.com';
 })();
 function setApiBase(u) { localStorage.setItem('fy_api_base', u.replace(/\/$/,'')); location.reload(); }
@@ -1419,37 +1428,88 @@ function switchAuthTab(tab) {
 async function doSignIn() {
   const email = document.getElementById('si-email').value.trim().toLowerCase();
   const pass = document.getElementById('si-password').value;
-  if (!email||!pass) { toast('Please enter email and password.'); return; }
+  if (!email || !pass) { toast('Please enter email and password.'); return; }
 
-  // Try Supabase auth first
+  const btn = document.querySelector('[onclick="doSignIn()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
+
+  // ── Supabase auth ────────────────────────────────────────────────
   if (isSupabaseReady()) {
-    try {
-      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-      if (!error && data.user) {
-        // Fetch account profile from profiles table
-        const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-        session = {
-          accountId: data.user.id,
-          email: data.user.email,
-          name: profile?.name || data.user.email,
-          org: profile?.org || 'My Fleet',
-          plan: profile?.plan || 'trial',
-          role: 'admin'
-        };
-        setStore('fy_session', session);
-        launchApp();
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
+
+    if (error) {
+      // Surface the real Supabase error — not a generic message
+      const msg = error.message || '';
+      console.error('Supabase sign-in error:', msg);
+
+      if (msg.toLowerCase().includes('email not confirmed')) {
+        // User signed up but never clicked confirmation email
+        // Since we have email confirmation OFF, this shouldn't happen —
+        // but if it does, we can resend the confirmation
+        toast('Email not confirmed. Check your inbox or contact support.');
         return;
       }
-    } catch(e) { console.warn('Supabase auth failed, trying local:', e.message); }
+
+      if (msg.toLowerCase().includes('invalid login') ||
+          msg.toLowerCase().includes('invalid credentials') ||
+          msg.toLowerCase().includes('wrong password') ||
+          msg.toLowerCase().includes('user not found')) {
+        toast('Incorrect email or password. Please try again.');
+        return;
+      }
+
+      // Any other Supabase error — show it directly so we can debug
+      toast('Sign in error: ' + msg);
+      return;
+    }
+
+    if (data?.user) {
+      // Auth succeeded — load profile
+      let profile = null;
+      const { data: pd, error: pe } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+      profile = pd;
+
+      // If profile missing (trigger hadn't run yet), create it now
+      if (pe || !profile) {
+        console.warn('Profile missing for user — creating now');
+        const meta = data.user.user_metadata || {};
+        await sb.from('profiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          name: meta.name || data.user.email.split('@')[0],
+          org:  meta.org  || 'My Fleet',
+          plan: meta.plan || 'trial',
+          plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
+        }).then(()=>{}).catch(e => console.warn('Profile upsert:', e.message));
+        // Re-fetch
+        const { data: pd2 } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+        profile = pd2;
+      }
+
+      session = {
+        accountId: data.user.id,
+        email:     data.user.email,
+        name:      profile?.name || data.user.email.split('@')[0],
+        org:       profile?.org  || 'My Fleet',
+        plan:      profile?.plan || 'trial',
+        role:      'admin'
+      };
+      setStore('fy_session', session);
+      _fleetCache = null; _teamCache = null;
+      launchApp();
+      return;
+    }
+  } else {
+    // Supabase not configured — show clear message instead of silent fallback
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
+    console.warn('Supabase not ready — isSupabaseReady() is false');
+    toast('Database not connected. Go to Settings → Supabase Database and save your credentials.');
+    return;
   }
 
-  // Fallback: localStorage auth
-  const accounts = getAccounts();
-  const acct = Object.values(accounts).find(a => a.email === email && a.password === pass);
-  if (!acct) { toast('Invalid email or password.'); return; }
-  session = { accountId: acct.id, email: acct.email, name: acct.name, org: acct.org, plan: acct.plan, role: 'admin' };
-  setStore('fy_session', session);
-  launchApp();
+  if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
 }
 
 async function doSignUp() {
@@ -3150,12 +3210,41 @@ function renderSchedRepairs() {
   }).join('');
 }
 
+
+// ═══════════ PASSWORD RESET ═══════════
+async function resetPassword() {
+  const email = document.getElementById('si-email').value.trim().toLowerCase();
+  if (!email) { toast('Enter your email address first, then click Forgot password.'); return; }
+  if (!isSupabaseReady()) { toast('Supabase not connected — check Settings.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname.replace('app.html','') + 'app.html'
+  });
+  if (error) { toast('Reset failed: ' + error.message); return; }
+  toast('✅ Password reset email sent to ' + email + '. Check your inbox.');
+}
+
 // ═══════════ INIT ═══════════
 (async function init() {
   // Step 1: boot Supabase if credentials saved
   initSupabase();
 
   const params = new URLSearchParams(window.location.search);
+
+  // Show connection diagnostic on auth screen
+  setTimeout(() => {
+    const diagEl = document.getElementById('auth-diag');
+    const diagText = document.getElementById('auth-diag-text');
+    if (!diagEl || !diagText) return;
+    if (isSupabaseReady()) {
+      const url = getStore('fy_sb_url') || '';
+      const proj = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || '?';
+      diagText.innerHTML = '✅ Supabase connected · Project: <strong>' + proj + '</strong>';
+      diagEl.style.color = 'var(--green)';
+    } else {
+      diagText.innerHTML = '⚠️ Supabase not connected — go to Settings → Supabase Database after signing in with demo, or <a href="#" onclick="switchAuthTab('signup');return false" style="color:var(--accent)">set it up now</a>';
+    }
+    diagEl.style.display = 'block';
+  }, 300);
 
   // Step 2: check for live Supabase session (user already logged in on another tab/device)
   if (isSupabaseReady()) {
