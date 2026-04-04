@@ -770,6 +770,44 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               </div>
             </div>
             <div style="border-top:1px solid var(--border);padding-top:16px">
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">🔔 Alert Thresholds</div>
+              <div style="font-size:12px;color:var(--stone);margin-bottom:14px;line-height:1.5">Alerts fire when these values are exceeded. Once triggered, an email is sent to your account email (max once per 24 hours).</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Replacement score ≥</label>
+                  <input class="form-input" id="at-score" type="number" min="1" max="100" placeholder="65"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 65. Alert when score reaches this.</div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Single repair cost &gt;</label>
+                  <input class="form-input" id="at-repair-cost" type="number" min="0" placeholder="2000"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: $2,000. Alert on expensive repairs.</div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Repairs in 90 days ≥</label>
+                  <input class="form-input" id="at-repair-count" type="number" min="1" placeholder="3"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 3. Flags repeated breakdowns.</div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Same category repeats in X days</label>
+                  <input class="form-input" id="at-recurring" type="number" min="1" placeholder="60"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 60 days. Flags recurring issues.</div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Service overdue warning (days before)</label>
+                  <input class="form-input" id="at-service-days" type="number" min="1" placeholder="14"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 14 days before due date.</div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Annual downtime alert (days &gt;)</label>
+                  <input class="form-input" id="at-downtime" type="number" min="0" placeholder="10"/>
+                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 10 days/year downtime.</div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="saveAlertThresholds()">💾 Save Alert Thresholds</button>
+            </div>
+
+            <div style="border-top:1px solid var(--border);padding-top:16px">
               <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">Danger Zone</div>
               <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red)" onclick="clearAllData()">Delete All Fleet Data</button>
             </div>
@@ -982,6 +1020,22 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           </div>
         </div>
 
+        <!-- Next Repair Schedule -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🗓 Scheduled Repairs</div>
+            <button class="btn btn-ghost btn-sm" onclick="openScheduleRepairModal()">＋ Schedule Repair</button>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Vehicle</th><th>Repair Type</th><th>Scheduled Date</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+                <tbody id="scheduled-repairs-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- Full repair history -->
         <div class="card">
           <div class="card-header">
@@ -1054,60 +1108,6 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
   </div>
 </div>
 
-<!-- EDIT VEHICLE MODAL -->
-<div class="overlay" id="modal-edit-vehicle">
-  <div class="modal" style="width:680px">
-    <div class="modal-hd">
-      <div class="modal-title">✏️ Edit Vehicle</div>
-      <button class="modal-close" onclick="closeModal('modal-edit-vehicle')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="ev-id"/>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div class="form-group" style="margin:0"><label class="form-label">Make &amp; Model</label><input class="form-input" id="ev-model"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Brand</label>
-          <select class="form-select" id="ev-brand">
-            <option value="">Select</option>
-            <option value="toyota">Toyota</option><option value="lexus">Lexus</option><option value="honda">Honda</option>
-            <option value="mazda">Mazda</option><option value="subaru">Subaru</option><option value="hyundai">Hyundai</option>
-            <option value="kia">Kia</option><option value="nissan">Nissan</option><option value="ford">Ford</option>
-            <option value="chevrolet">Chevrolet</option><option value="gmc">GMC</option><option value="jeep">Jeep</option>
-            <option value="bmw">BMW</option><option value="mercedes">Mercedes-Benz</option><option value="audi">Audi</option>
-            <option value="volkswagen">Volkswagen</option><option value="landrover">Land Rover</option>
-            <option value="fiat">Fiat</option><option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:0"><label class="form-label">Fuel Type</label>
-          <select class="form-select" id="ev-fueltype">
-            <option value="">Select</option><option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
-            <option value="diesel">Diesel</option><option value="phev">PHEV</option><option value="bev">Electric (BEV)</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:0"><label class="form-label">Year</label><input class="form-input" id="ev-year" type="number" min="1990" max="2030"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Mileage (km)</label><input class="form-input" id="ev-mileage" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Annual km</label><input class="form-input" id="ev-annual" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Maint. Cost ($/yr)</label><input class="form-input" id="ev-maint" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Vehicle Value ($)</label><input class="form-input" id="ev-value" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Fuel Cost ($/yr)</label><input class="form-input" id="ev-fuelcost" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Repairs (12mo)</label><input class="form-input" id="ev-repairs" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Downtime Days/yr</label><input class="form-input" id="ev-downtime" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Condition</label>
-          <select class="form-select" id="ev-condition">
-            <option value="">Select</option><option value="excellent">Excellent</option><option value="good">Good</option>
-            <option value="fair">Fair</option><option value="poor">Poor</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:0"><label class="form-label">Department</label><input class="form-input" id="ev-dept"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Expected km/yr</label><input class="form-input" id="ev-expected" type="number" min="0"/></div>
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-ghost" onclick="closeModal('modal-edit-vehicle')">Cancel</button>
-      <button class="btn btn-primary" style="width:auto" onclick="saveEditVehicle()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
 <!-- DELETE MODAL -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:380px">
@@ -1155,6 +1155,50 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
   </div>
 </div>
 
+<!-- SCHEDULE REPAIR MODAL -->
+<div class="overlay" id="modal-schedule-repair">
+  <div class="modal" style="width:480px">
+    <div class="modal-hd">
+      <div class="modal-title">🗓 Schedule Next Repair</div>
+      <button class="modal-close" onclick="closeModal('modal-schedule-repair')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Vehicle</label>
+        <select class="form-select" id="sr-vehicle-id"><option value="">Select vehicle...</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Repair Type / Category</label>
+        <select class="form-select" id="sr-category">
+          <option value="Service">Routine Service</option>
+          <option value="Engine">Engine</option>
+          <option value="Brakes">Brakes</option>
+          <option value="Tyres">Tyres</option>
+          <option value="Electrical">Electrical</option>
+          <option value="Bodywork">Bodywork</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Scheduled Date</label>
+        <input class="form-input" id="sr-date" type="date"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description / Notes</label>
+        <input class="form-input" id="sr-notes" placeholder="e.g. Full service, replace brake pads"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estimated Cost (optional)</label>
+        <input class="form-input" id="sr-est-cost" type="number" min="0" placeholder="0"/>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-schedule-repair')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveScheduledRepair()">Schedule</button>
+    </div>
+  </div>
+</div>
+
 <!-- SERVICE MODAL -->
 <div class="overlay" id="modal-service">
   <div class="modal" style="width:440px">
@@ -1185,14 +1229,14 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 
 
 <script>
-// ── Backend URL — edit this to match your Render.com deployment ──
+// ── Backend API URL — update to your Render.com deployment URL ──
 const API_BASE = (function() {
-  const stored = localStorage.getItem('fy_api_base');
-  if (stored) return stored;
+  const s = localStorage.getItem('fy_api_base');
+  if (s) return s;
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3001';
   return 'https://fleetzy-backend.onrender.com';
 })();
-function setApiBase(url) { localStorage.setItem('fy_api_base', url.replace(/\/$/,'')); location.reload(); }
+function setApiBase(u) { localStorage.setItem('fy_api_base', u.replace(/\/$/,'')); location.reload(); }
 
 // ═══════════ DATA LAYER ═══════════
 const CY = new Date().getFullYear();
@@ -1463,15 +1507,39 @@ async function doSignUp() {
   // Try Supabase signup first
   if (isSupabaseReady()) {
     try {
-      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name, org, plan }, emailRedirectTo: window.location.origin + '/welcome.html' } });
+      const { data, error } = await sb.auth.signUp({
+        email, password: pass,
+        options: {
+          data: { name, org, plan },
+          emailRedirectTo: window.location.origin + (window.location.pathname.replace('app.html','')) + 'welcome.html'
+        }
+      });
       if (error) throw error;
       if (data.user) {
-        // Insert profile row
-        await sb.from('profiles').upsert({ id: data.user.id, name, email, org, plan });
-        // Seed team
-        await sb.from('team_members').insert({ id: Date.now(), account_id: data.user.id, name, email, role: 'admin', joined: new Date().toLocaleDateString() });
+        // Insert profile row — use insert not upsert to avoid RLS timing issues
+        const { error: profileErr } = await sb.from('profiles').insert({ id: data.user.id, name, email, org, plan, plan_expires_at: new Date(Date.now()+14*86400000).toISOString() });
+        if (profileErr && profileErr.code !== '23505') {
+          // 23505 = unique violation (already exists from trigger) — safe to ignore
+          console.warn('Profile insert note:', profileErr.message);
+        }
+        // Seed team member
+        await sb.from('team_members').insert({ id: Date.now(), account_id: data.user.id, name, email, role: 'admin', joined: new Date().toLocaleDateString() }).catch(()=>{});
         session = { accountId: data.user.id, email, name, org, plan, role: 'admin' };
         setStore('fy_session', session);
+
+        // If Supabase has email confirmation ON — tell user to check email
+        if (data.session === null) {
+          // No session = email confirmation required
+          document.getElementById('auth-screen').innerHTML = `
+            <div class="auth-box" style="text-align:center">
+              <div style="font-size:40px;margin-bottom:16px">📧</div>
+              <div class="auth-logo">Check your email</div>
+              <div class="auth-sub" style="margin-bottom:20px">We sent a confirmation link to <strong>${email}</strong>.<br>Click it to activate your account.</div>
+              <div style="font-size:13px;color:var(--stone);margin-bottom:16px">Didn't get it? Check spam, or <a href="#" onclick="location.reload()" style="color:var(--accent)">try again</a>.</div>
+            </div>`;
+          return;
+        }
+
         launchApp();
         toast('Welcome to Fleetzy! Account created.');
         return;
@@ -1621,7 +1689,6 @@ function fillColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--gre
 
 // ═══════════ APP NAV ═══════════
 let activeSection = 'dashboard';
-let _suppressPush = false;
 function nav(sec) {
   // Role & plan gates on navigation
   const navGates = {
@@ -1657,10 +1724,6 @@ function nav(sec) {
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
-  if (!_suppressPush) {
-    _navHistory.push(sec);
-    try { history.pushState({ sec: sec }, '', '#' + sec); } catch(e) {}
-  }
 }
 
 // ═══════════ RENDER ═══════════
@@ -1731,7 +1794,6 @@ async function renderTable() {
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
       <td style="display:flex;gap:5px;padding:12px 8px">
         <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Breakdown">⁉</button>
-        <button onclick="editVehicle(${v.id})" class="btn btn-ghost btn-sm" title="Edit">✏️</button>
         <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
       </td>
     </tr>`;
@@ -1837,6 +1899,7 @@ function loadSettings(){
   const ab=document.getElementById('set-api-base'); if(ab) ab.value=API_BASE;
   const abd=document.getElementById('api-base-display'); if(abd) abd.textContent=API_BASE;
   const abd2=document.getElementById('api-base-display2'); if(abd2) abd2.textContent=API_BASE;
+  loadAlertThresholds();
 }
 async function saveSettings(){if(gate('','settings'))return;
   const org=document.getElementById('set-org').value.trim();
@@ -2545,7 +2608,6 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
       <span class="vcmd-cost">${vCost>0?'$'+Math.round(vCost).toLocaleString():'—'}</span>
       <div class="vcmd-actions">
         <button class="vcmd-btn" onclick="showBreakdown(${v.id})">Score</button>
-        <button class="vcmd-btn" onclick="editVehicle(${v.id})">Edit</button>
         <button class="vcmd-btn" onclick="nav('invoice')">Invoice</button>
       </div>
     </div>`;
@@ -2832,14 +2894,17 @@ function renderRepairsDashboard() {
   renderAlerts(repairs);
   renderCostByVehicle(repairs);
   renderRepairHistory();
+  renderScheduledRepairs();
   populateVehicleSelect();
 }
 
 function renderAlerts(repairs) {
   const alerts = [];
   const now = new Date();
+  const T = getAlertThresholds();
   const thirtyDaysAgo = new Date(now - 30*86400000);
   const ninetyDaysAgo = new Date(now - 90*86400000);
+  const recurringWindow = new Date(now - T.recurringDays * 86400000);
 
   // Group by vehicle
   const byVehicle = {};
@@ -2849,28 +2914,45 @@ function renderAlerts(repairs) {
   });
 
   Object.values(byVehicle).forEach(({model, repairs: vRepairs}) => {
-    // Alert: 3+ repairs in 90 days
+    // Alert: N+ repairs in 90 days (configurable)
     const recent90 = vRepairs.filter(r => new Date(r.date) >= ninetyDaysAgo);
-    if (recent90.length >= 3) {
-      alerts.push({ type:'red', icon:'🔴', title:`${model} — Repeated repairs (${recent90.length} in 90 days)`, desc:`This vehicle has had ${recent90.length} repair incidents in the last 90 days. This pattern strongly suggests replacement should be evaluated.` });
+    if (recent90.length >= T.repairCount) {
+      alerts.push({ type:'red', icon:'🔴', title:`${model} — Repeated repairs (${recent90.length} in 90 days)`,
+        desc:`This vehicle has had ${recent90.length} repairs in 90 days (your threshold: ${T.repairCount}). Strongly suggests replacement evaluation.` });
     }
-    // Alert: single repair > $2000
-    const bigRepair = vRepairs.find(r => parseFloat(r.cost) >= 2000 && new Date(r.date) >= thirtyDaysAgo);
+    // Alert: single repair > threshold
+    const bigRepair = vRepairs.find(r => parseFloat(r.cost) >= T.repairCost && new Date(r.date) >= thirtyDaysAgo);
     if (bigRepair) {
-      alerts.push({ type:'yellow', icon:'💸', title:`${model} — High repair cost ($${Math.round(bigRepair.cost).toLocaleString()})`, desc:`A single repair exceeded $2,000 last month. Compare this against the vehicle's current market value.` });
+      alerts.push({ type:'yellow', icon:'💸', title:`${model} — High repair cost ($${Math.round(bigRepair.cost).toLocaleString()})`,
+        desc:`A single repair exceeded $${T.repairCost.toLocaleString()} last month (your threshold). Compare against vehicle market value.` });
     }
-    // Alert: same category twice in 60 days
-    const sixty = vRepairs.filter(r => new Date(r.date) >= new Date(now-60*86400000));
+    // Alert: same category repeated within configurable window
+    const inWindow = vRepairs.filter(r => new Date(r.date) >= recurringWindow);
     const catCount = {};
-    sixty.forEach(r => catCount[r.category] = (catCount[r.category]||0)+1);
+    inWindow.forEach(r => catCount[r.category] = (catCount[r.category]||0)+1);
     Object.entries(catCount).forEach(([cat,count]) => {
-      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️', title:`${model} — Recurring ${cat} issue`, desc:`${cat} repairs have occurred ${count} times in the last 60 days. This may indicate an underlying problem not being fully resolved.` });
+      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️', title:`${model} — Recurring ${cat} issue (${count}×)`,
+        desc:`${cat} repairs occurred ${count} times in ${T.recurringDays} days (your window). May indicate unresolved underlying problem.` });
+    });
+    // Alert: upcoming scheduled repair overdue
+    const scheduled = getScheduledRepairs().filter(sr => String(sr.vehicleId) === String(vRepairs[0]?.vehicleId));
+    scheduled.forEach(sr => {
+      const daysLeft = Math.ceil((new Date(sr.scheduledDate) - now) / 86400000);
+      if (daysLeft < 0 && sr.status !== 'done') {
+        alerts.push({ type:'red', icon:'🔧', title:`${sr.vehicleModel} — Scheduled ${sr.category} overdue by ${Math.abs(daysLeft)} days`,
+          desc:`A scheduled repair is overdue. ${sr.notes || ''}` });
+      } else if (daysLeft <= 7 && daysLeft >= 0 && sr.status !== 'done') {
+        alerts.push({ type:'yellow', icon:'🔧', title:`${sr.vehicleModel} — ${sr.category} repair due in ${daysLeft} day${daysLeft!==1?'s':''}`,
+          desc:`Upcoming scheduled repair: ${sr.notes || sr.category}. ${sr.estimatedCost ? 'Est. $'+sr.estimatedCost.toLocaleString() : ''}` });
+      }
     });
   });
 
   const listEl = document.getElementById('alerts-list');
   const countEl = document.getElementById('alerts-count-label');
   countEl.textContent = alerts.length ? `${alerts.length} alert${alerts.length!==1?'s':''}` : 'All clear';
+
+  // Trigger email if thresholds exceeded (max 1 per 24h)
   maybeEmailAlerts(alerts);
 
   if (!alerts.length) {
@@ -2953,93 +3035,160 @@ if (invDrop) {
 }
 
 
-// ═══════════ EDIT VEHICLE ═══════════
-async function editVehicle(id) {
-  const fleet = await getFleet();
-  const v = fleet.find(x => String(x.id) === String(id));
-  if (!v) { toast('Vehicle not found.'); return; }
-  const fields = {
-    'ev-id': id, 'ev-model': v.model||'', 'ev-brand': v.brand||'',
-    'ev-fueltype': v.fueltype||'', 'ev-year': v.year||'', 'ev-mileage': v.mileage||'',
-    'ev-annual': v.annual||'', 'ev-maint': v.maint||'', 'ev-value': v.value||'',
-    'ev-fuelcost': v.fuelcost||'', 'ev-repairs': v.repairs||'', 'ev-downtime': v.downtime||'',
-    'ev-condition': v.condition||'', 'ev-dept': v.dept||'', 'ev-expected': v.expected||''
+// ═══════════ ALERT THRESHOLDS ═══════════
+function getAlertThresholds() {
+  return Object.assign(
+    { score:65, repairCost:2000, repairCount:3, recurringDays:60, serviceDays:14, downtime:10 },
+    getStore('fy_alert_thresholds') || {}
+  );
+}
+
+function saveAlertThresholds() {
+  const t = {
+    score:        parseInt(document.getElementById('at-score')?.value)        || 65,
+    repairCost:   parseInt(document.getElementById('at-repair-cost')?.value)  || 2000,
+    repairCount:  parseInt(document.getElementById('at-repair-count')?.value) || 3,
+    recurringDays:parseInt(document.getElementById('at-recurring')?.value)    || 60,
+    serviceDays:  parseInt(document.getElementById('at-service-days')?.value) || 14,
+    downtime:     parseInt(document.getElementById('at-downtime')?.value)     || 10,
   };
-  Object.entries(fields).forEach(([id, val]) => {
-    const el = document.getElementById(id);
-    if (el) el.value = val;
-  });
-  openModal('modal-edit-vehicle');
+  setStore('fy_alert_thresholds', t);
+  toast('✅ Alert thresholds saved. Alerts will now trigger emails when these are exceeded.');
 }
 
-async function saveEditVehicle() {
-  const id = document.getElementById('ev-id').value;
-  if (!id) { toast('No vehicle selected.'); return; }
-  const fleet = await getFleet();
-  const idx = fleet.findIndex(x => String(x.id) === String(id));
-  if (idx === -1) { toast('Vehicle not found.'); return; }
-  const flds = ['model','brand','fueltype','year','mileage','annual','maint','value','fuelcost','repairs','downtime','condition','dept','expected'];
-  flds.forEach(f => {
-    const el = document.getElementById('ev-' + f);
-    if (el) fleet[idx][f] = el.value;
-  });
-  _fleetCache = null;
-  await saveFleet(fleet);
-  closeModal('modal-edit-vehicle');
-  toast('✅ ' + (fleet[idx].model || 'Vehicle') + ' updated.');
-  if (activeSection === 'fleet') renderTable();
-  else if (activeSection === 'dashboard') renderUnifiedDashboard();
+function loadAlertThresholds() {
+  const t = getAlertThresholds();
+  const map = { 'at-score': t.score, 'at-repair-cost': t.repairCost, 'at-repair-count': t.repairCount,
+    'at-recurring': t.recurringDays, 'at-service-days': t.serviceDays, 'at-downtime': t.downtime };
+  Object.entries(map).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
 }
 
-
-// ═══════════ BROWSER NAVIGATION ═══════════
-let _navHistory = ['dashboard'];
-
-window.addEventListener('popstate', function(e) {
-  if (!session) return;
-  const sec = e.state && e.state.sec;
-  if (sec) {
-    _suppressPush = true;
-    nav(sec);
-    _suppressPush = false;
-  } else {
-    // Bottom of history — confirm exit
-    if (confirm('Leave Fleetzy? Your data is saved.')) {
-      // Let browser navigate away
-    } else {
-      history.pushState({ sec: activeSection }, '', '#' + activeSection);
-    }
-  }
-});
-
-window.addEventListener('beforeunload', function(e) {
-  if (session && document.getElementById('app-screen').style.display === 'grid') {
-    e.returnValue = '';
-  }
-});
-
-
-// ═══════════ ALERT EMAILS ═══════════
-let _lastAlertSentHash = '';
+// ═══════════ ALERT EMAIL (triggered by renderAlerts) ═══════════
+let _lastAlertEmailHash = '';
 
 function maybeEmailAlerts(alerts) {
-  if (!alerts || !alerts.length || !isSupabaseReady()) return;
+  if (!alerts || !alerts.length) return;
+  if (!isSupabaseReady() || !session?.email) return;
   const hash = alerts.map(a => a.title).sort().join('|');
-  if (hash === _lastAlertSentHash) return;
-  const lastSent = getStore('fy_alert_last_sent');
+  if (hash === _lastAlertEmailHash) return;
+  const lastSent = getStore('fy_alert_email_ts');
   if (lastSent && (Date.now() - lastSent) < 86400000) return; // 24h throttle
-  _lastAlertSentHash = hash;
-  setStore('fy_alert_last_sent', Date.now());
+  _lastAlertEmailHash = hash;
+  setStore('fy_alert_email_ts', Date.now());
+  // Fire and forget — non-fatal
   fetch(API_BASE + '/api/send-alerts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      recipientEmail: session?.email,
-      recipientName: session?.name,
-      org: session?.org || 'Your Fleet',
+      recipientEmail: session.email,
+      recipientName:  session.name,
+      org:            session.org || 'Your Fleet',
       alerts: alerts.map(a => ({ type: a.type, title: a.title, desc: a.desc }))
     })
-  }).catch(e => console.warn('Alert email (non-fatal):', e.message));
+  }).then(r => r.json()).then(d => {
+    if (d.sent) console.log('[ALERTS] Email sent to', session.email);
+    else console.log('[ALERTS] Email skipped:', d.reason || d.error || 'unknown');
+  }).catch(e => console.warn('[ALERTS] Email failed (non-fatal):', e.message));
+}
+
+// ═══════════ SCHEDULED REPAIRS ═══════════
+function getScheduledRepairs() { return getStore('fy_sched_' + (session?.accountId || '')) || []; }
+function saveScheduledRepairs(r) { setStore('fy_sched_' + (session?.accountId || ''), r); }
+
+function openScheduleRepairModal() {
+  getFleet().then(fleet => {
+    const sel = document.getElementById('sr-vehicle-id');
+    sel.innerHTML = '<option value="">Select vehicle...</option>' +
+      fleet.map(v => `<option value="${v.id}">${v.model} (${v.year})</option>`).join('');
+  });
+  // Default date = 30 days from now
+  const d = new Date(); d.setDate(d.getDate() + 30);
+  document.getElementById('sr-date').value = d.toISOString().split('T')[0];
+  document.getElementById('sr-notes').value = '';
+  document.getElementById('sr-est-cost').value = '';
+  openModal('modal-schedule-repair');
+}
+
+function saveScheduledRepair() {
+  const vid  = document.getElementById('sr-vehicle-id').value;
+  const cat  = document.getElementById('sr-category').value;
+  const date = document.getElementById('sr-date').value;
+  const notes = document.getElementById('sr-notes').value.trim();
+  const cost = parseFloat(document.getElementById('sr-est-cost').value) || 0;
+
+  if (!vid || !date) { toast('Please select a vehicle and date.'); return; }
+
+  getFleet().then(fleet => {
+    const v = fleet.find(x => String(x.id) === vid);
+    const records = getScheduledRepairs();
+    records.push({
+      id: Date.now(),
+      vehicleId: parseInt(vid),
+      vehicleModel: v?.model || 'Unknown',
+      category: cat,
+      scheduledDate: date,
+      notes,
+      estimatedCost: cost,
+      status: 'pending'
+    });
+    saveScheduledRepairs(records);
+    closeModal('modal-schedule-repair');
+    toast('✅ Repair scheduled for ' + (v?.model || 'vehicle'));
+    renderScheduledRepairs();
+  });
+}
+
+function deleteScheduledRepair(id) {
+  const r = getScheduledRepairs().filter(x => x.id !== id);
+  saveScheduledRepairs(r);
+  renderScheduledRepairs();
+  toast('Scheduled repair removed.');
+}
+
+function markScheduledRepairDone(id) {
+  const r = getScheduledRepairs().map(x => x.id === id ? { ...x, status: 'done' } : x);
+  saveScheduledRepairs(r);
+  renderScheduledRepairs();
+  toast('Marked as done.');
+}
+
+function renderScheduledRepairs() {
+  const tbody = document.getElementById('scheduled-repairs-tbody');
+  if (!tbody) return;
+  const records = getScheduledRepairs().filter(x => x.status !== 'done' || (new Date(x.scheduledDate) > new Date(Date.now() - 7*86400000)));
+  const now = new Date();
+
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--stone)">No scheduled repairs. Click "+ Schedule Repair" to add one.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = records.map(r => {
+    const daysLeft = Math.ceil((new Date(r.scheduledDate) - now) / 86400000);
+    const isDone = r.status === 'done';
+    const isOverdue = daysLeft < 0 && !isDone;
+    const isSoon = daysLeft >= 0 && daysLeft <= 7 && !isDone;
+
+    let statusHtml;
+    if (isDone)    statusHtml = `<span class="pill pill-green"><span class="dot"></span>Done</span>`;
+    else if (isOverdue) statusHtml = `<span class="pill pill-red"><span class="dot"></span>Overdue ${Math.abs(daysLeft)}d</span>`;
+    else if (isSoon) statusHtml = `<span class="pill pill-yellow"><span class="dot"></span>Due in ${daysLeft}d</span>`;
+    else           statusHtml = `<span class="pill pill-green" style="background:var(--mist);color:var(--stone)"><span class="dot" style="background:var(--stone)"></span>In ${daysLeft}d</span>`;
+
+    const catClass = {Engine:'cat-engine',Brakes:'cat-brakes',Tyres:'cat-tyres',Electrical:'cat-electrical',Bodywork:'cat-bodywork',Service:'cat-service',Other:'cat-other'}[r.category]||'cat-other';
+
+    return `<tr>
+      <td><strong>${r.vehicleModel}</strong></td>
+      <td><span class="repair-cat ${catClass}">${r.category}</span></td>
+      <td class="td-muted">${r.scheduledDate}</td>
+      <td class="td-muted" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.notes || '—'}${r.estimatedCost ? ' · Est. $'+r.estimatedCost.toLocaleString() : ''}</td>
+      <td>${statusHtml}</td>
+      <td style="display:flex;gap:6px;padding:10px 8px">
+        ${!isDone ? `<button onclick="markScheduledRepairDone(${r.id})" class="btn btn-ghost btn-sm" title="Mark done">✓</button>` : ''}
+        <button onclick="deleteScheduledRepair(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:14px;padding:4px 6px" title="Remove">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 // ═══════════ INIT ═══════════
