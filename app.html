@@ -769,40 +769,16 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                 <span id="sb-status" style="font-size:12px;color:var(--stone)"></span>
               </div>
             </div>
-            <div style="border-top:1px solid var(--border);padding-top:16px">
+            <div style="border-top:1px solid var(--border);padding-top:18px">
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">🔔 Alert Thresholds</div>
-              <div style="font-size:12px;color:var(--stone);margin-bottom:14px;line-height:1.5">Alerts fire when these values are exceeded. Once triggered, an email is sent to your account email (max once per 24 hours).</div>
+              <div style="font-size:12px;color:var(--stone);margin-bottom:14px;line-height:1.5">When these are exceeded, an alert fires in the Repairs &amp; Alerts screen <strong>and an email is sent to your account email</strong> (max once per 24 hours). Make sure SMTP is configured in Settings → Backend + your Render environment vars.</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Replacement score ≥</label>
-                  <input class="form-input" id="at-score" type="number" min="1" max="100" placeholder="65"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 65. Alert when score reaches this.</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Single repair cost &gt;</label>
-                  <input class="form-input" id="at-repair-cost" type="number" min="0" placeholder="2000"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: $2,000. Alert on expensive repairs.</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Repairs in 90 days ≥</label>
-                  <input class="form-input" id="at-repair-count" type="number" min="1" placeholder="3"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 3. Flags repeated breakdowns.</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Same category repeats in X days</label>
-                  <input class="form-input" id="at-recurring" type="number" min="1" placeholder="60"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 60 days. Flags recurring issues.</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Service overdue warning (days before)</label>
-                  <input class="form-input" id="at-service-days" type="number" min="1" placeholder="14"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 14 days before due date.</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Annual downtime alert (days &gt;)</label>
-                  <input class="form-input" id="at-downtime" type="number" min="0" placeholder="10"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Default: 10 days/year downtime.</div>
-                </div>
+                <div class="form-group" style="margin:0"><label class="form-label">Replacement score ≥</label><input class="form-input" id="at-score" type="number" min="1" max="100" placeholder="65"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Alert when score reaches this. Default: 65</div></div>
+                <div class="form-group" style="margin:0"><label class="form-label">Single repair cost &gt;</label><input class="form-input" id="at-repair-cost" type="number" min="0" placeholder="2000"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Alert on expensive repairs. Default: $2,000</div></div>
+                <div class="form-group" style="margin:0"><label class="form-label">Repairs in 90 days ≥</label><input class="form-input" id="at-repair-count" type="number" min="1" placeholder="3"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Flags repeated breakdowns. Default: 3</div></div>
+                <div class="form-group" style="margin:0"><label class="form-label">Same category repeats in X days</label><input class="form-input" id="at-recurring" type="number" min="1" placeholder="60"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Recurring issue window. Default: 60 days</div></div>
+                <div class="form-group" style="margin:0"><label class="form-label">Service warning (days before due)</label><input class="form-input" id="at-service-days" type="number" min="1" placeholder="14"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Warn before service date. Default: 14 days</div></div>
+                <div class="form-group" style="margin:0"><label class="form-label">Annual downtime alert (days &gt;)</label><input class="form-input" id="at-downtime" type="number" min="0" placeholder="10"/><div style="font-size:11px;color:var(--stone);margin-top:3px">Flags high downtime. Default: 10 days/yr</div></div>
               </div>
               <button class="btn btn-ghost btn-sm" onclick="saveAlertThresholds()">💾 Save Alert Thresholds</button>
             </div>
@@ -1020,19 +996,17 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           </div>
         </div>
 
-        <!-- Next Repair Schedule -->
+        <!-- Scheduled Repairs -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">🗓 Scheduled Repairs</div>
+            <div class="card-title">🗓 Scheduled Next Repairs</div>
             <button class="btn btn-ghost btn-sm" onclick="openScheduleRepairModal()">＋ Schedule Repair</button>
           </div>
           <div class="card-body" style="padding:0">
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Vehicle</th><th>Repair Type</th><th>Scheduled Date</th><th>Notes</th><th>Status</th><th></th></tr></thead>
-                <tbody id="scheduled-repairs-tbody"></tbody>
-              </table>
-            </div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Vehicle</th><th>Type</th><th>Date</th><th>Notes</th><th>Est. Cost</th><th>Status</th><th></th></tr></thead>
+              <tbody id="sched-tbody"></tbody>
+            </table></div>
           </div>
         </div>
 
@@ -1156,45 +1130,28 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 </div>
 
 <!-- SCHEDULE REPAIR MODAL -->
-<div class="overlay" id="modal-schedule-repair">
-  <div class="modal" style="width:480px">
-    <div class="modal-hd">
-      <div class="modal-title">🗓 Schedule Next Repair</div>
-      <button class="modal-close" onclick="closeModal('modal-schedule-repair')">✕</button>
-    </div>
+<div class="overlay" id="modal-sched-repair">
+  <div class="modal" style="width:460px">
+    <div class="modal-hd"><div class="modal-title">🗓 Schedule Next Repair</div><button class="modal-close" onclick="closeModal('modal-sched-repair')">✕</button></div>
     <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Vehicle</label>
-        <select class="form-select" id="sr-vehicle-id"><option value="">Select vehicle...</option></select>
+      <div class="form-group"><label class="form-label">Vehicle</label>
+        <select class="form-select" id="sched-vid"><option value="">Select vehicle...</option></select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Repair Type / Category</label>
-        <select class="form-select" id="sr-category">
-          <option value="Service">Routine Service</option>
-          <option value="Engine">Engine</option>
-          <option value="Brakes">Brakes</option>
-          <option value="Tyres">Tyres</option>
-          <option value="Electrical">Electrical</option>
-          <option value="Bodywork">Bodywork</option>
+      <div class="form-group"><label class="form-label">Repair Type</label>
+        <select class="form-select" id="sched-cat">
+          <option value="Service">Routine Service</option><option value="Engine">Engine</option>
+          <option value="Brakes">Brakes</option><option value="Tyres">Tyres</option>
+          <option value="Electrical">Electrical</option><option value="Bodywork">Bodywork</option>
           <option value="Other">Other</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Scheduled Date</label>
-        <input class="form-input" id="sr-date" type="date"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Description / Notes</label>
-        <input class="form-input" id="sr-notes" placeholder="e.g. Full service, replace brake pads"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Estimated Cost (optional)</label>
-        <input class="form-input" id="sr-est-cost" type="number" min="0" placeholder="0"/>
-      </div>
+      <div class="form-group"><label class="form-label">Scheduled Date</label><input class="form-input" id="sched-date" type="date"/></div>
+      <div class="form-group"><label class="form-label">Notes / Description</label><input class="form-input" id="sched-notes" placeholder="e.g. Replace brake pads, full service"/></div>
+      <div class="form-group"><label class="form-label">Estimated Cost (optional)</label><input class="form-input" id="sched-cost" type="number" min="0" placeholder="0"/></div>
     </div>
     <div class="modal-ft">
-      <button class="btn btn-ghost" onclick="closeModal('modal-schedule-repair')">Cancel</button>
-      <button class="btn btn-primary" style="width:auto" onclick="saveScheduledRepair()">Schedule</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-sched-repair')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveSchedRepair()">Save</button>
     </div>
   </div>
 </div>
@@ -1229,7 +1186,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 
 
 <script>
-// ── Backend API URL — update to your Render.com deployment URL ──
+// ── Backend API URL — must match your Render.com service URL ──
 const API_BASE = (function() {
   const s = localStorage.getItem('fy_api_base');
   if (s) return s;
@@ -1507,41 +1464,44 @@ async function doSignUp() {
   // Try Supabase signup first
   if (isSupabaseReady()) {
     try {
+      const redirectTo = window.location.origin +
+        window.location.pathname.replace(/app\.html.*/, '') + 'welcome.html';
+
       const { data, error } = await sb.auth.signUp({
         email, password: pass,
-        options: {
-          data: { name, org, plan },
-          emailRedirectTo: window.location.origin + (window.location.pathname.replace('app.html','')) + 'welcome.html'
-        }
+        options: { data: { name, org, plan }, emailRedirectTo: redirectTo }
       });
       if (error) throw error;
       if (data.user) {
-        // Insert profile row — use insert not upsert to avoid RLS timing issues
-        const { error: profileErr } = await sb.from('profiles').insert({ id: data.user.id, name, email, org, plan, plan_expires_at: new Date(Date.now()+14*86400000).toISOString() });
-        if (profileErr && profileErr.code !== '23505') {
-          // 23505 = unique violation (already exists from trigger) — safe to ignore
-          console.warn('Profile insert note:', profileErr.message);
-        }
-        // Seed team member
-        await sb.from('team_members').insert({ id: Date.now(), account_id: data.user.id, name, email, role: 'admin', joined: new Date().toLocaleDateString() }).catch(()=>{});
-        session = { accountId: data.user.id, email, name, org, plan, role: 'admin' };
-        setStore('fy_session', session);
+        // Insert profile — ignore duplicate (23505) which means trigger already created it
+        await sb.from('profiles').insert({
+          id: data.user.id, name, email, org, plan,
+          plan_expires_at: new Date(Date.now()+14*86400000).toISOString()
+        }).then(()=>{}).catch(e => console.log('Profile insert note:', e.message));
 
-        // If Supabase has email confirmation ON — tell user to check email
-        if (data.session === null) {
-          // No session = email confirmation required
-          document.getElementById('auth-screen').innerHTML = `
-            <div class="auth-box" style="text-align:center">
-              <div style="font-size:40px;margin-bottom:16px">📧</div>
-              <div class="auth-logo">Check your email</div>
-              <div class="auth-sub" style="margin-bottom:20px">We sent a confirmation link to <strong>${email}</strong>.<br>Click it to activate your account.</div>
-              <div style="font-size:13px;color:var(--stone);margin-bottom:16px">Didn't get it? Check spam, or <a href="#" onclick="location.reload()" style="color:var(--accent)">try again</a>.</div>
-            </div>`;
+        await sb.from('team_members').insert({
+          id: Date.now(), account_id: data.user.id,
+          name, email, role: 'admin', joined: new Date().toLocaleDateString()
+        }).then(()=>{}).catch(()=>{});
+
+        // data.session is null when email confirmation is required
+        if (!data.session) {
+          // Email confirmation ON — show 'check your email' screen
+          const authBox = document.querySelector('.auth-box');
+          if (authBox) authBox.innerHTML = `
+            <div class='auth-logo'>📧 Check your email</div>
+            <div class='auth-sub'>We sent a confirmation link to <strong>${email}</strong>.<br>Click the link to activate your account.</div>
+            <div style='margin-top:20px;font-size:13px;color:var(--stone)'>Didn't get it? Check your spam folder, or <a href='#' onclick='location.reload();return false' style='color:var(--accent)'>try signing in</a> if you already confirmed.</div>
+            <div class='info-box' style='margin-top:16px;font-size:12px'>ℹ️ If emails aren't arriving, ask your admin to configure SMTP in Supabase Dashboard → Authentication → SMTP Settings.</div>
+          `;
           return;
         }
 
+        // Email confirmation OFF — log straight in
+        session = { accountId: data.user.id, email, name, org, plan, role: 'admin' };
+        setStore('fy_session', session);
         launchApp();
-        toast('Welcome to Fleetzy! Account created.');
+        toast('Welcome to Fleetzy!');
         return;
       }
     } catch(e) {
@@ -2894,7 +2854,7 @@ function renderRepairsDashboard() {
   renderAlerts(repairs);
   renderCostByVehicle(repairs);
   renderRepairHistory();
-  renderScheduledRepairs();
+  renderSchedRepairs();
   populateVehicleSelect();
 }
 
@@ -2904,9 +2864,24 @@ function renderAlerts(repairs) {
   const T = getAlertThresholds();
   const thirtyDaysAgo = new Date(now - 30*86400000);
   const ninetyDaysAgo = new Date(now - 90*86400000);
-  const recurringWindow = new Date(now - T.recurringDays * 86400000);
+  const recurringWindow = new Date(now - T.recurringDays*86400000);
 
-  // Group by vehicle
+  // ── Scheduled repair alerts ──────────────────────────────
+  getSchedRepairs().forEach(sr => {
+    if (sr.status === 'done') return;
+    const daysLeft = Math.ceil((new Date(sr.scheduledDate) - now) / 86400000);
+    if (daysLeft < 0) {
+      alerts.push({ type:'red', icon:'🔧',
+        title:`${sr.vehicleModel} — Scheduled ${sr.category} overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft)!==1?'s':''}`,
+        desc:`Scheduled repair is overdue. ${sr.notes ? 'Notes: '+sr.notes : ''} ${sr.estimatedCost?'Est. cost: $'+sr.estimatedCost:''}`.trim() });
+    } else if (daysLeft <= T.serviceDays) {
+      alerts.push({ type:'yellow', icon:'🔧',
+        title:`${sr.vehicleModel} — ${sr.category} repair due in ${daysLeft} day${daysLeft!==1?'s':''}`,
+        desc:`Upcoming scheduled repair within your ${T.serviceDays}-day warning window. ${sr.notes||''} ${sr.estimatedCost?'Est. $'+sr.estimatedCost:''}`.trim() });
+    }
+  });
+
+  // ── Repair history alerts ─────────────────────────────────
   const byVehicle = {};
   repairs.forEach(r => {
     if (!byVehicle[r.vehicleId]) byVehicle[r.vehicleId] = { model: r.vehicleModel, repairs: [] };
@@ -2914,37 +2889,25 @@ function renderAlerts(repairs) {
   });
 
   Object.values(byVehicle).forEach(({model, repairs: vRepairs}) => {
-    // Alert: N+ repairs in 90 days (configurable)
     const recent90 = vRepairs.filter(r => new Date(r.date) >= ninetyDaysAgo);
     if (recent90.length >= T.repairCount) {
-      alerts.push({ type:'red', icon:'🔴', title:`${model} — Repeated repairs (${recent90.length} in 90 days)`,
-        desc:`This vehicle has had ${recent90.length} repairs in 90 days (your threshold: ${T.repairCount}). Strongly suggests replacement evaluation.` });
+      alerts.push({ type:'red', icon:'🔴',
+        title:`${model} — Repeated repairs (${recent90.length} in 90 days)`,
+        desc:`${recent90.length} repair incidents in 90 days (threshold: ${T.repairCount}). Strongly suggests replacement evaluation.` });
     }
-    // Alert: single repair > threshold
     const bigRepair = vRepairs.find(r => parseFloat(r.cost) >= T.repairCost && new Date(r.date) >= thirtyDaysAgo);
     if (bigRepair) {
-      alerts.push({ type:'yellow', icon:'💸', title:`${model} — High repair cost ($${Math.round(bigRepair.cost).toLocaleString()})`,
-        desc:`A single repair exceeded $${T.repairCost.toLocaleString()} last month (your threshold). Compare against vehicle market value.` });
+      alerts.push({ type:'yellow', icon:'💸',
+        title:`${model} — High repair cost ($${Math.round(bigRepair.cost).toLocaleString()})`,
+        desc:`Single repair exceeded $${T.repairCost.toLocaleString()} last month (your threshold). Compare against vehicle value.` });
     }
-    // Alert: same category repeated within configurable window
     const inWindow = vRepairs.filter(r => new Date(r.date) >= recurringWindow);
     const catCount = {};
     inWindow.forEach(r => catCount[r.category] = (catCount[r.category]||0)+1);
     Object.entries(catCount).forEach(([cat,count]) => {
-      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️', title:`${model} — Recurring ${cat} issue (${count}×)`,
-        desc:`${cat} repairs occurred ${count} times in ${T.recurringDays} days (your window). May indicate unresolved underlying problem.` });
-    });
-    // Alert: upcoming scheduled repair overdue
-    const scheduled = getScheduledRepairs().filter(sr => String(sr.vehicleId) === String(vRepairs[0]?.vehicleId));
-    scheduled.forEach(sr => {
-      const daysLeft = Math.ceil((new Date(sr.scheduledDate) - now) / 86400000);
-      if (daysLeft < 0 && sr.status !== 'done') {
-        alerts.push({ type:'red', icon:'🔧', title:`${sr.vehicleModel} — Scheduled ${sr.category} overdue by ${Math.abs(daysLeft)} days`,
-          desc:`A scheduled repair is overdue. ${sr.notes || ''}` });
-      } else if (daysLeft <= 7 && daysLeft >= 0 && sr.status !== 'done') {
-        alerts.push({ type:'yellow', icon:'🔧', title:`${sr.vehicleModel} — ${sr.category} repair due in ${daysLeft} day${daysLeft!==1?'s':''}`,
-          desc:`Upcoming scheduled repair: ${sr.notes || sr.category}. ${sr.estimatedCost ? 'Est. $'+sr.estimatedCost.toLocaleString() : ''}` });
-      }
+      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️',
+        title:`${model} — Recurring ${cat} issue (${count}×)`,
+        desc:`${cat} repairs occurred ${count} times in ${T.recurringDays} days (your window). May indicate an unresolved underlying problem.` });
     });
   });
 
@@ -2952,7 +2915,7 @@ function renderAlerts(repairs) {
   const countEl = document.getElementById('alerts-count-label');
   countEl.textContent = alerts.length ? `${alerts.length} alert${alerts.length!==1?'s':''}` : 'All clear';
 
-  // Trigger email if thresholds exceeded (max 1 per 24h)
+  // ── Trigger email for active alerts ──────────────────────
   maybeEmailAlerts(alerts);
 
   if (!alerts.length) {
@@ -3042,150 +3005,146 @@ function getAlertThresholds() {
     getStore('fy_alert_thresholds') || {}
   );
 }
-
 function saveAlertThresholds() {
+  const f = id => parseInt(document.getElementById(id)?.value) || 0;
   const t = {
-    score:        parseInt(document.getElementById('at-score')?.value)        || 65,
-    repairCost:   parseInt(document.getElementById('at-repair-cost')?.value)  || 2000,
-    repairCount:  parseInt(document.getElementById('at-repair-count')?.value) || 3,
-    recurringDays:parseInt(document.getElementById('at-recurring')?.value)    || 60,
-    serviceDays:  parseInt(document.getElementById('at-service-days')?.value) || 14,
-    downtime:     parseInt(document.getElementById('at-downtime')?.value)     || 10,
+    score:        f('at-score')        || 65,
+    repairCost:   f('at-repair-cost')  || 2000,
+    repairCount:  f('at-repair-count') || 3,
+    recurringDays:f('at-recurring')    || 60,
+    serviceDays:  f('at-service-days') || 14,
+    downtime:     f('at-downtime')     || 10,
   };
   setStore('fy_alert_thresholds', t);
-  toast('✅ Alert thresholds saved. Alerts will now trigger emails when these are exceeded.');
+  toast('✅ Alert thresholds saved — emails will fire when these are exceeded.');
 }
-
 function loadAlertThresholds() {
   const t = getAlertThresholds();
-  const map = { 'at-score': t.score, 'at-repair-cost': t.repairCost, 'at-repair-count': t.repairCount,
-    'at-recurring': t.recurringDays, 'at-service-days': t.serviceDays, 'at-downtime': t.downtime };
-  Object.entries(map).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
+  const map = {'at-score':t.score,'at-repair-cost':t.repairCost,'at-repair-count':t.repairCount,
+    'at-recurring':t.recurringDays,'at-service-days':t.serviceDays,'at-downtime':t.downtime};
+  Object.entries(map).forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.value=v; });
 }
 
-// ═══════════ ALERT EMAIL (triggered by renderAlerts) ═══════════
-let _lastAlertEmailHash = '';
-
+// ═══════════ ALERT EMAIL ═══════════
+let _alertEmailHash = '';
 function maybeEmailAlerts(alerts) {
   if (!alerts || !alerts.length) return;
-  if (!isSupabaseReady() || !session?.email) return;
-  const hash = alerts.map(a => a.title).sort().join('|');
-  if (hash === _lastAlertEmailHash) return;
-  const lastSent = getStore('fy_alert_email_ts');
-  if (lastSent && (Date.now() - lastSent) < 86400000) return; // 24h throttle
-  _lastAlertEmailHash = hash;
-  setStore('fy_alert_email_ts', Date.now());
-  // Fire and forget — non-fatal
+  // Must have session email to send to
+  if (!session?.email) return;
+  // Deduplicate — don't re-send same set of alerts
+  const hash = alerts.map(a=>a.title).sort().join('|');
+  if (hash === _alertEmailHash) return;
+  // 24-hour throttle per account
+  const lastSent = getStore('fy_alert_email_ts_' + (session.accountId||''));
+  if (lastSent && (Date.now() - lastSent) < 86400000) {
+    console.log('[ALERTS] Email suppressed — sent', Math.round((Date.now()-lastSent)/3600000), 'hours ago');
+    return;
+  }
+  _alertEmailHash = hash;
+  setStore('fy_alert_email_ts_' + (session.accountId||''), Date.now());
+  console.log('[ALERTS] Sending email to', session.email, 'for', alerts.length, 'alerts');
   fetch(API_BASE + '/api/send-alerts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
       recipientEmail: session.email,
-      recipientName:  session.name,
-      org:            session.org || 'Your Fleet',
-      alerts: alerts.map(a => ({ type: a.type, title: a.title, desc: a.desc }))
+      recipientName:  session.name  || session.email,
+      org:            session.org   || 'Your Fleet',
+      alerts: alerts.map(a=>({type:a.type, title:a.title, desc:a.desc}))
     })
-  }).then(r => r.json()).then(d => {
-    if (d.sent) console.log('[ALERTS] Email sent to', session.email);
-    else console.log('[ALERTS] Email skipped:', d.reason || d.error || 'unknown');
-  }).catch(e => console.warn('[ALERTS] Email failed (non-fatal):', e.message));
+  })
+  .then(r => r.json())
+  .then(d => console.log('[ALERTS] Email result:', d.sent ? 'sent ✅' : ('skipped — ' + (d.reason||d.error||'?'))))
+  .catch(e => console.warn('[ALERTS] Email non-fatal error:', e.message));
 }
 
 // ═══════════ SCHEDULED REPAIRS ═══════════
-function getScheduledRepairs() { return getStore('fy_sched_' + (session?.accountId || '')) || []; }
-function saveScheduledRepairs(r) { setStore('fy_sched_' + (session?.accountId || ''), r); }
+function getSchedRepairs() { return getStore('fy_sched_'+(session?.accountId||'')) || []; }
+function saveSchedRepairs(r){ setStore('fy_sched_'+(session?.accountId||''), r); }
 
 function openScheduleRepairModal() {
   getFleet().then(fleet => {
-    const sel = document.getElementById('sr-vehicle-id');
+    const sel = document.getElementById('sched-vid');
+    if (!sel) return;
     sel.innerHTML = '<option value="">Select vehicle...</option>' +
-      fleet.map(v => `<option value="${v.id}">${v.model} (${v.year})</option>`).join('');
+      fleet.map(v=>`<option value="${v.id}">${v.model} (${v.year})</option>`).join('');
   });
-  // Default date = 30 days from now
-  const d = new Date(); d.setDate(d.getDate() + 30);
-  document.getElementById('sr-date').value = d.toISOString().split('T')[0];
-  document.getElementById('sr-notes').value = '';
-  document.getElementById('sr-est-cost').value = '';
-  openModal('modal-schedule-repair');
+  const d = new Date(); d.setDate(d.getDate()+30);
+  const dateEl = document.getElementById('sched-date');
+  if (dateEl) dateEl.value = d.toISOString().split('T')[0];
+  ['sched-notes','sched-cost'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  openModal('modal-sched-repair');
 }
 
-function saveScheduledRepair() {
-  const vid  = document.getElementById('sr-vehicle-id').value;
-  const cat  = document.getElementById('sr-category').value;
-  const date = document.getElementById('sr-date').value;
-  const notes = document.getElementById('sr-notes').value.trim();
-  const cost = parseFloat(document.getElementById('sr-est-cost').value) || 0;
-
+function saveSchedRepair() {
+  const vid   = document.getElementById('sched-vid')?.value;
+  const cat   = document.getElementById('sched-cat')?.value   || 'Service';
+  const date  = document.getElementById('sched-date')?.value;
+  const notes = document.getElementById('sched-notes')?.value.trim() || '';
+  const cost  = parseFloat(document.getElementById('sched-cost')?.value) || 0;
   if (!vid || !date) { toast('Please select a vehicle and date.'); return; }
-
   getFleet().then(fleet => {
-    const v = fleet.find(x => String(x.id) === vid);
-    const records = getScheduledRepairs();
-    records.push({
-      id: Date.now(),
-      vehicleId: parseInt(vid),
-      vehicleModel: v?.model || 'Unknown',
-      category: cat,
-      scheduledDate: date,
-      notes,
-      estimatedCost: cost,
-      status: 'pending'
-    });
-    saveScheduledRepairs(records);
-    closeModal('modal-schedule-repair');
-    toast('✅ Repair scheduled for ' + (v?.model || 'vehicle'));
-    renderScheduledRepairs();
+    const v = fleet.find(x => String(x.id) === String(vid));
+    const records = getSchedRepairs();
+    records.push({ id:Date.now(), vehicleId:parseInt(vid), vehicleModel:v?.model||'Unknown',
+      category:cat, scheduledDate:date, notes, estimatedCost:cost, status:'pending' });
+    saveSchedRepairs(records);
+    closeModal('modal-sched-repair');
+    toast('✅ Repair scheduled for ' + (v?.model||'vehicle'));
+    renderSchedRepairs();
+    // Immediately check if this new item should trigger an alert
+    renderRepairsDashboard();
   });
 }
 
-function deleteScheduledRepair(id) {
-  const r = getScheduledRepairs().filter(x => x.id !== id);
-  saveScheduledRepairs(r);
-  renderScheduledRepairs();
-  toast('Scheduled repair removed.');
+function deleteSchedRepair(id) {
+  saveSchedRepairs(getSchedRepairs().filter(x => x.id !== id));
+  renderSchedRepairs();
 }
-
-function markScheduledRepairDone(id) {
-  const r = getScheduledRepairs().map(x => x.id === id ? { ...x, status: 'done' } : x);
-  saveScheduledRepairs(r);
-  renderScheduledRepairs();
+function markSchedDone(id) {
+  saveSchedRepairs(getSchedRepairs().map(x => x.id===id ? {...x, status:'done'} : x));
+  renderSchedRepairs();
   toast('Marked as done.');
 }
 
-function renderScheduledRepairs() {
-  const tbody = document.getElementById('scheduled-repairs-tbody');
+function renderSchedRepairs() {
+  const tbody = document.getElementById('sched-tbody');
   if (!tbody) return;
-  const records = getScheduledRepairs().filter(x => x.status !== 'done' || (new Date(x.scheduledDate) > new Date(Date.now() - 7*86400000)));
+  const T = getAlertThresholds();
   const now = new Date();
+  const records = getSchedRepairs();
 
   if (!records.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--stone)">No scheduled repairs. Click "+ Schedule Repair" to add one.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--stone)">No scheduled repairs. Click "+ Schedule Repair" to add one.</td></tr>';
     return;
   }
 
+  const catClass = {Engine:'cat-engine',Brakes:'cat-brakes',Tyres:'cat-tyres',Electrical:'cat-electrical',Bodywork:'cat-bodywork',Service:'cat-service',Other:'cat-other'};
+
   tbody.innerHTML = records.map(r => {
     const daysLeft = Math.ceil((new Date(r.scheduledDate) - now) / 86400000);
-    const isDone = r.status === 'done';
-    const isOverdue = daysLeft < 0 && !isDone;
-    const isSoon = daysLeft >= 0 && daysLeft <= 7 && !isDone;
+    const done  = r.status === 'done';
+    const overdue = daysLeft < 0 && !done;
+    const warning = !done && !overdue && daysLeft <= T.serviceDays;
 
-    let statusHtml;
-    if (isDone)    statusHtml = `<span class="pill pill-green"><span class="dot"></span>Done</span>`;
-    else if (isOverdue) statusHtml = `<span class="pill pill-red"><span class="dot"></span>Overdue ${Math.abs(daysLeft)}d</span>`;
-    else if (isSoon) statusHtml = `<span class="pill pill-yellow"><span class="dot"></span>Due in ${daysLeft}d</span>`;
-    else           statusHtml = `<span class="pill pill-green" style="background:var(--mist);color:var(--stone)"><span class="dot" style="background:var(--stone)"></span>In ${daysLeft}d</span>`;
-
-    const catClass = {Engine:'cat-engine',Brakes:'cat-brakes',Tyres:'cat-tyres',Electrical:'cat-electrical',Bodywork:'cat-bodywork',Service:'cat-service',Other:'cat-other'}[r.category]||'cat-other';
+    const statusPill = done
+      ? `<span class="pill pill-green"><span class="dot"></span>Done</span>`
+      : overdue
+        ? `<span class="pill pill-red"><span class="dot"></span>Overdue ${Math.abs(daysLeft)}d</span>`
+        : warning
+          ? `<span class="pill pill-yellow"><span class="dot"></span>Due in ${daysLeft}d</span>`
+          : `<span class="pill" style="background:var(--mist);color:var(--stone)">In ${daysLeft}d</span>`;
 
     return `<tr>
       <td><strong>${r.vehicleModel}</strong></td>
-      <td><span class="repair-cat ${catClass}">${r.category}</span></td>
+      <td><span class="repair-cat ${catClass[r.category]||'cat-other'}">${r.category}</span></td>
       <td class="td-muted">${r.scheduledDate}</td>
-      <td class="td-muted" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.notes || '—'}${r.estimatedCost ? ' · Est. $'+r.estimatedCost.toLocaleString() : ''}</td>
-      <td>${statusHtml}</td>
-      <td style="display:flex;gap:6px;padding:10px 8px">
-        ${!isDone ? `<button onclick="markScheduledRepairDone(${r.id})" class="btn btn-ghost btn-sm" title="Mark done">✓</button>` : ''}
-        <button onclick="deleteScheduledRepair(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:14px;padding:4px 6px" title="Remove">✕</button>
+      <td class="td-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
+      <td class="td-muted">${r.estimatedCost ? '$'+r.estimatedCost.toLocaleString() : '—'}</td>
+      <td>${statusPill}</td>
+      <td style="display:flex;gap:4px;padding:10px 6px">
+        ${!done ? `<button onclick="markSchedDone(${r.id})" class="btn btn-ghost btn-sm" title="Mark done" style="padding:4px 8px">✓</button>` : ''}
+        <button onclick="deleteSchedRepair(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:14px;padding:4px 6px" title="Remove">✕</button>
       </td>
     </tr>`;
   }).join('');
