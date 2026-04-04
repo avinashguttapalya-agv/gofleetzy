@@ -756,75 +756,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
             <div class="form-group"><label class="form-label">Organisation Name</label><input class="form-input" id="set-org" placeholder="Your company name"/></div>
             <div class="form-group"><label class="form-label">Your Name</label><input class="form-input" id="set-name" placeholder="Your full name"/></div>
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="set-email" type="email" placeholder="you@company.com"/></div>
-            <div class="form-group">
-              <label class="form-label">Dashboard Currency</label>
-              <select class="form-select" id="set-currency" onchange="saveCurrencySetting()">
-                <option value="USD|$">USD — US Dollar ($)</option>
-                <option value="EUR|€">EUR — Euro (€)</option>
-                <option value="GBP|£">GBP — British Pound (£)</option>
-                <option value="CAD|CA$">CAD — Canadian Dollar (CA$)</option>
-                <option value="AUD|A$">AUD — Australian Dollar (A$)</option>
-                <option value="MXN|MX$">MXN — Mexican Peso (MX$)</option>
-                <option value="BRL|R$">BRL — Brazilian Real (R$)</option>
-                <option value="JPY|¥">JPY — Japanese Yen (¥)</option>
-                <option value="CNY|¥">CNY — Chinese Yuan (¥)</option>
-                <option value="INR|₹">INR — Indian Rupee (₹)</option>
-                <option value="CHF|CHF">CHF — Swiss Franc (CHF)</option>
-                <option value="SEK|kr">SEK — Swedish Krona (kr)</option>
-                <option value="NOK|kr">NOK — Norwegian Krone (kr)</option>
-                <option value="DKK|kr">DKK — Danish Krone (kr)</option>
-                <option value="PLN|zł">PLN — Polish Złoty (zł)</option>
-                <option value="CZK|Kč">CZK — Czech Koruna (Kč)</option>
-                <option value="HUF|Ft">HUF — Hungarian Forint (Ft)</option>
-                <option value="RON|lei">RON — Romanian Leu (lei)</option>
-                <option value="TRY|₺">TRY — Turkish Lira (₺)</option>
-                <option value="ZAR|R">ZAR — South African Rand (R)</option>
-                <option value="AED|د.إ">AED — UAE Dirham (د.إ)</option>
-                <option value="SAR|﷼">SAR — Saudi Riyal (﷼)</option>
-                <option value="SGD|S$">SGD — Singapore Dollar (S$)</option>
-                <option value="HKD|HK$">HKD — Hong Kong Dollar (HK$)</option>
-                <option value="NZD|NZ$">NZD — New Zealand Dollar (NZ$)</option>
-              </select>
-              <div style="font-size:11px;color:var(--stone);margin-top:4px">Used in dashboard KPIs, repair costs, and invoice totals. Invoice scanning auto-detects currency.</div>
-            </div>
             <button class="btn btn-primary" style="width:auto" onclick="saveSettings()">Save Changes</button>
-
-            <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px">🔔 Alert Thresholds</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Replacement score alert (0-100)</label>
-                  <input class="form-input" id="alert-score" type="number" min="1" max="100" placeholder="65"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Alert when score ≥ this value</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Single repair cost alert</label>
-                  <input class="form-input" id="alert-repair-cost" type="number" min="0" placeholder="2000"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Alert when single repair exceeds this</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Repairs in 90 days alert</label>
-                  <input class="form-input" id="alert-repair-count" type="number" min="1" placeholder="3"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Alert when ≥ this many repairs in 90 days</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Recurring issue (same category, days)</label>
-                  <input class="form-input" id="alert-recurring-days" type="number" min="1" placeholder="60"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Window for detecting repeated category repairs</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Service due warning (days before)</label>
-                  <input class="form-input" id="alert-service-days" type="number" min="1" placeholder="14"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Warn this many days before service due</div>
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Downtime alert (days/year)</label>
-                  <input class="form-input" id="alert-downtime" type="number" min="0" placeholder="10"/>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">Alert when annual downtime exceeds this</div>
-                </div>
-              </div>
-              <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="saveAlertThresholds()">Save Alert Thresholds</button>
-            </div>
             <div style="border-top:1px solid var(--border);padding-top:16px">
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Supabase Database</div>
               <div style="font-size:13px;color:var(--stone);margin-bottom:12px;line-height:1.5">Connect your Supabase project so fleet data syncs across all devices and team members. Get your keys at <a href="https://supabase.com" target="_blank" style="color:var(--accent)">supabase.com</a> → Project Settings → API.</div>
@@ -983,13 +915,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                 <div class="scan-fields-grid">
                   <div class="scan-field"><div class="scan-field-label">Vehicle</div><div class="scan-field-val" id="sr-vehicle">—</div></div>
                   <div class="scan-field"><div class="scan-field-label">Date</div><div class="scan-field-val" id="sr-date">—</div></div>
-                  <div class="scan-field">
-                    <div class="scan-field-label">Total Cost</div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                      <div class="scan-field-val" id="sr-total" style="color:var(--accent);font-size:18px;font-weight:700">—</div>
-                      <span id="sr-currency-badge" style="display:none;font-size:10px;font-weight:700;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:6px"></span>
-                    </div>
-                  </div>
+                  <div class="scan-field"><div class="scan-field-label">Total Cost</div><div class="scan-field-val" id="sr-total" style="color:var(--accent);font-size:18px;font-weight:700">—</div></div>
                   <div class="scan-field"><div class="scan-field-label">Category</div><div class="scan-field-val" id="sr-category">—</div></div>
                 </div>
 
@@ -1128,6 +1054,60 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
   </div>
 </div>
 
+<!-- EDIT VEHICLE MODAL -->
+<div class="overlay" id="modal-edit-vehicle">
+  <div class="modal" style="width:680px">
+    <div class="modal-hd">
+      <div class="modal-title">✏️ Edit Vehicle</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-vehicle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ev-id"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">Make &amp; Model</label><input class="form-input" id="ev-model"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Brand</label>
+          <select class="form-select" id="ev-brand">
+            <option value="">Select</option>
+            <option value="toyota">Toyota</option><option value="lexus">Lexus</option><option value="honda">Honda</option>
+            <option value="mazda">Mazda</option><option value="subaru">Subaru</option><option value="hyundai">Hyundai</option>
+            <option value="kia">Kia</option><option value="nissan">Nissan</option><option value="ford">Ford</option>
+            <option value="chevrolet">Chevrolet</option><option value="gmc">GMC</option><option value="jeep">Jeep</option>
+            <option value="bmw">BMW</option><option value="mercedes">Mercedes-Benz</option><option value="audi">Audi</option>
+            <option value="volkswagen">Volkswagen</option><option value="landrover">Land Rover</option>
+            <option value="fiat">Fiat</option><option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Type</label>
+          <select class="form-select" id="ev-fueltype">
+            <option value="">Select</option><option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
+            <option value="diesel">Diesel</option><option value="phev">PHEV</option><option value="bev">Electric (BEV)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Year</label><input class="form-input" id="ev-year" type="number" min="1990" max="2030"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Mileage (km)</label><input class="form-input" id="ev-mileage" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Annual km</label><input class="form-input" id="ev-annual" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Maint. Cost ($/yr)</label><input class="form-input" id="ev-maint" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Vehicle Value ($)</label><input class="form-input" id="ev-value" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Fuel Cost ($/yr)</label><input class="form-input" id="ev-fuelcost" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Repairs (12mo)</label><input class="form-input" id="ev-repairs" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Downtime Days/yr</label><input class="form-input" id="ev-downtime" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Condition</label>
+          <select class="form-select" id="ev-condition">
+            <option value="">Select</option><option value="excellent">Excellent</option><option value="good">Good</option>
+            <option value="fair">Fair</option><option value="poor">Poor</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0"><label class="form-label">Department</label><input class="form-input" id="ev-dept"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Expected km/yr</label><input class="form-input" id="ev-expected" type="number" min="0"/></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-vehicle')">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveEditVehicle()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:380px">
@@ -1204,27 +1184,16 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 <div class="toast" id="toast"></div>
 
 
-// ═══════════ BACKEND CONFIG ═══════════
-// Point this to your backend URL.
-// During GitHub Pages testing: use your Render.com URL
-// After going live: use https://api.gofleetzy.com
+<script>
+// ── Backend URL — edit this to match your Render.com deployment ──
 const API_BASE = (function() {
   const stored = localStorage.getItem('fy_api_base');
   if (stored) return stored;
-  // Auto-detect: if on localhost use local backend, else use production
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    return 'http://localhost:3001';
-  }
-  return 'https://fleetzy-backend.onrender.com'; // ← update after deploying backend
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3001';
+  return 'https://fleetzy-backend.onrender.com';
 })();
+function setApiBase(url) { localStorage.setItem('fy_api_base', url.replace(/\/$/,'')); location.reload(); }
 
-// Allow overriding API base from Settings
-function setApiBase(url) {
-  localStorage.setItem('fy_api_base', url.replace(/\/$/, ''));
-  location.reload();
-}
-
-<script>
 // ═══════════ DATA LAYER ═══════════
 const CY = new Date().getFullYear();
 
@@ -1487,92 +1456,39 @@ async function doSignUp() {
   const email = document.getElementById('su-email').value.trim().toLowerCase();
   const org = document.getElementById('su-org').value.trim();
   const pass = document.getElementById('su-password').value;
-  const plan = document.getElementById('su-plan').value || 'trial';
+  const plan = document.getElementById('su-plan').value;
   if (!name||!email||!org||!pass) { toast('Please fill in all fields.'); return; }
   if (pass.length < 8) { toast('Password must be at least 8 characters.'); return; }
 
+  // Try Supabase signup first
   if (isSupabaseReady()) {
     try {
-      // Step 1: Create auth user — DB trigger auto-creates profile (see fix-profile-creation.sql)
-      const { data, error } = await sb.auth.signUp({
-        email, password: pass,
-        options: { data: { name, org, plan } }
-      });
-
-      if (error) {
-        if (error.message?.toLowerCase().includes('already registered') ||
-            error.message?.toLowerCase().includes('already exists') ||
-            error.message?.toLowerCase().includes('user already')) {
-          toast('This email is already registered. Try signing in instead.');
-        } else {
-          toast('Sign up failed: ' + error.message);
-        }
+      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name, org, plan }, emailRedirectTo: window.location.origin + '/welcome.html' } });
+      if (error) throw error;
+      if (data.user) {
+        // Insert profile row
+        await sb.from('profiles').upsert({ id: data.user.id, name, email, org, plan });
+        // Seed team
+        await sb.from('team_members').insert({ id: Date.now(), account_id: data.user.id, name, email, role: 'admin', joined: new Date().toLocaleDateString() });
+        session = { accountId: data.user.id, email, name, org, plan, role: 'admin' };
+        setStore('fy_session', session);
+        launchApp();
+        toast('Welcome to Fleetzy! Account created.');
         return;
       }
-
-      if (!data.user) { toast('Sign up failed — no user returned. Try again.'); return; }
-
-      const uid = data.user.id;
-
-      // Step 2: Wait for DB trigger, then verify profile exists
-      await new Promise(r => setTimeout(r, 1000));
-      const { data: profile, error: pErr } = await sb.from('profiles').select('*').eq('id', uid).single();
-
-      if (pErr || !profile) {
-        // Trigger didn't fire — insert manually as fallback
-        // This uses the anon key with a split policy (insert allowed with with check)
-        const { error: insertErr } = await sb.from('profiles').insert({
-          id: uid, email, name, org, plan,
-          plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
-        });
-        if (insertErr) {
-          console.warn('Profile insert failed:', insertErr.message, insertErr.code);
-          // If RLS blocks insert, try upsert which sometimes bypasses differently
-          await sb.from('profiles').upsert({
-            id: uid, email, name, org, plan,
-            plan_expires_at: new Date(Date.now() + 14*86400000).toISOString()
-          }).eq('id', uid);
-        }
-      }
-
-      // Step 3: Insert team record (owner as admin)
-      await sb.from('team_members').insert({
-        id: Date.now(), account_id: uid, name, email,
-        role: 'admin', joined: new Date().toLocaleDateString()
-      }).then(() => {}).catch(() => {}); // non-fatal if fails
-
-      // Step 4: Set session from what we have
-      const finalProfile = profile || { name, org, plan };
-      session = {
-        accountId: uid, email,
-        name: finalProfile.name || name,
-        org: finalProfile.org || org,
-        plan: finalProfile.plan || plan,
-        role: 'admin',
-        createdAt: new Date().toISOString()
-      };
-      setStore('fy_session', session);
-      _fleetCache = null; _teamCache = null;
-      launchApp();
-      toast('Welcome to Fleetzy! Account created.');
-      return;
-
     } catch(e) {
-      console.error('Signup error:', e);
-      toast('Sign up failed: ' + (e.message || 'Unknown error. Check console.'));
+      toast('Sign up failed: ' + e.message);
       return;
     }
   }
 
-  // ── Fallback: localStorage (no Supabase configured) ──────────────
+  // Fallback: localStorage signup
   const accounts = getAccounts();
-  if (Object.values(accounts).find(a => a.email === email)) {
-    toast('Email already registered. Try signing in.'); return;
-  }
+  if (Object.values(accounts).find(a => a.email===email)) { toast('Email already registered.'); return; }
   const id = 'acct_' + Date.now();
   accounts[id] = { id, name, email, password: pass, org, plan };
   saveAccounts(accounts);
-  session = { accountId: id, email, name, org, plan, role: 'admin', createdAt: new Date().toISOString() };
+  session = { accountId: id, email, name, org, plan, role: 'admin' };
   setStore('fy_session', session);
   await saveTeam([{ id: Date.now(), name, email, role: 'admin', joined: new Date().toLocaleDateString() }]);
   launchApp();
@@ -1705,6 +1621,7 @@ function fillColor(s){return s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--gre
 
 // ═══════════ APP NAV ═══════════
 let activeSection = 'dashboard';
+let _suppressPush = false;
 function nav(sec) {
   // Role & plan gates on navigation
   const navGates = {
@@ -1740,6 +1657,10 @@ function nav(sec) {
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
+  if (!_suppressPush) {
+    _navHistory.push(sec);
+    try { history.pushState({ sec: sec }, '', '#' + sec); } catch(e) {}
+  }
 }
 
 // ═══════════ RENDER ═══════════
@@ -1810,6 +1731,7 @@ async function renderTable() {
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
       <td style="display:flex;gap:5px;padding:12px 8px">
         <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Breakdown">⁉</button>
+        <button onclick="editVehicle(${v.id})" class="btn btn-ghost btn-sm" title="Edit">✏️</button>
         <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
       </td>
     </tr>`;
@@ -1915,8 +1837,6 @@ function loadSettings(){
   const ab=document.getElementById('set-api-base'); if(ab) ab.value=API_BASE;
   const abd=document.getElementById('api-base-display'); if(abd) abd.textContent=API_BASE;
   const abd2=document.getElementById('api-base-display2'); if(abd2) abd2.textContent=API_BASE;
-  loadCurrencySetting();
-  loadAlertThresholds();
 }
 async function saveSettings(){if(gate('','settings'))return;
   const org=document.getElementById('set-org').value.trim();
@@ -2568,7 +2488,7 @@ async function renderUnifiedDashboard() {
   document.getElementById('kpi-critical').textContent = critical;
   document.getElementById('kpi-watch').textContent = watch;
   document.getElementById('kpi-service').textContent = serviceDue;
-  document.getElementById('kpi-cost').textContent = getCurrencySymbol() + Math.round(ytdCost).toLocaleString();
+  document.getElementById('kpi-cost').textContent = '$' + Math.round(ytdCost).toLocaleString();
   document.getElementById('kpi-healthy').textContent = healthy;
 
   // Vehicle Command Centre
@@ -2625,6 +2545,7 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
       <span class="vcmd-cost">${vCost>0?'$'+Math.round(vCost).toLocaleString():'—'}</span>
       <div class="vcmd-actions">
         <button class="vcmd-btn" onclick="showBreakdown(${v.id})">Score</button>
+        <button class="vcmd-btn" onclick="editVehicle(${v.id})">Edit</button>
         <button class="vcmd-btn" onclick="nav('invoice')">Invoice</button>
       </div>
     </div>`;
@@ -2633,14 +2554,12 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
 
 function renderDashboardAlerts(repairs, scored, services, now) {
   const alerts = [];
-  const T = getAlertThresholds();
-  const sym = getCurrencySymbol();
   const thirtyDaysAgo = new Date(now - 30*86400000);
   const ninetyDaysAgo = new Date(now - 90*86400000);
 
-  // Replacement alerts — use configurable score threshold
-  scored.filter(x=>x.score>=T.score).slice(0,3).forEach(({v,score:s}) => {
-    alerts.push({ type:'red', icon:'🔴', title:`${v.model} needs replacement (score ${s}/${T.score})`, desc:`Replacement score is at or above your threshold of ${T.score}. Action recommended.` });
+  // Replacement alerts
+  scored.filter(x=>x.score>=65).slice(0,3).forEach(({v,score:s}) => {
+    alerts.push({ type:'red', icon:'🔴', title:`${v.model} needs replacement (score ${s})`, desc:'Replacement score above critical threshold — action recommended.' });
   });
 
   // Repair pattern alerts
@@ -2648,17 +2567,17 @@ function renderDashboardAlerts(repairs, scored, services, now) {
   repairs.forEach(r => { if(!byV[r.vehicleId])byV[r.vehicleId]={model:r.vehicleModel,repairs:[]}; byV[r.vehicleId].repairs.push(r); });
   Object.values(byV).forEach(({model,repairs:vr}) => {
     const recent = vr.filter(r=>new Date(r.date)>=ninetyDaysAgo);
-    if (recent.length >= T.repairCount) alerts.push({type:'yellow',icon:'⚠️',title:`${model}: ${recent.length} repairs in 90 days`,desc:`Repeated repairs detected (threshold: ${T.repairCount}). May signal deeper mechanical issue.`});
-    const bigRecent = vr.find(r=>parseFloat(r.cost)>=T.repairCost&&new Date(r.date)>=thirtyDaysAgo);
-    if (bigRecent) alerts.push({type:'yellow',icon:'💸',title:`${model}: ${sym}${Math.round(bigRecent.cost).toLocaleString()} repair last month`,desc:`Single repair above your ${sym}${T.repairCost.toLocaleString()} threshold — review vehicle value vs repair cost.`});
+    if (recent.length >= 3) alerts.push({type:'yellow',icon:'⚠️',title:`${model}: ${recent.length} repairs in 90 days`,desc:'Repeated repairs may signal deeper mechanical issue.'});
+    const bigRecent = vr.find(r=>parseFloat(r.cost)>=2000&&new Date(r.date)>=thirtyDaysAgo);
+    if (bigRecent) alerts.push({type:'yellow',icon:'💸',title:`${model}: $${Math.round(bigRecent.cost).toLocaleString()} repair last month`,desc:'Single repair above $2,000 — review vehicle value vs repair cost.'});
   });
 
-  // Service overdue — use configurable days warning
+  // Service overdue
   services.forEach(s => {
     if (!s.nextDate) return;
     const daysLeft = Math.ceil((new Date(s.nextDate)-now)/86400000);
     if (daysLeft < 0) alerts.push({type:'red',icon:'🔧',title:`${s.vehicleModel}: service overdue by ${Math.abs(daysLeft)} days`,desc:'Schedule service immediately.'});
-    else if (daysLeft <= T.serviceDays) alerts.push({type:'yellow',icon:'🔧',title:`${s.vehicleModel}: service due in ${daysLeft} days`,desc:`Service due within your ${T.serviceDays}-day warning window. Book appointment soon.`});
+    else if (daysLeft <= 14) alerts.push({type:'yellow',icon:'🔧',title:`${s.vehicleModel}: service due in ${daysLeft} days`,desc:'Book service appointment soon.'});
   });
 
   const el = document.getElementById('dash-alerts-list');
@@ -2760,7 +2679,7 @@ async function scanInvoice() {
   const btn = document.getElementById('invoice-scan-btn');
   btn.disabled = true; 
   btn.textContent = '⏳ Scanning...';
-  setScanStatus('scanning', '🔍 Step 1/2: Running free OCR analysis...');
+  setScanStatus('scanning', '🔍 Running OCR analysis...');
 
   try {
     // Convert base64 to blob
@@ -2771,13 +2690,11 @@ async function scanInvoice() {
 
     const formData = new FormData();
     formData.append('invoice', blob, 'invoice.jpg');
-    // Also send preferred currency if user set one
-    const prefCurrency = getStore('fy_currency') || '';
-    if (prefCurrency) formData.append('preferred_currency', prefCurrency);
 
     const response = await fetch(API_BASE + '/api/scan-invoice', {
       method: 'POST',
       body: formData
+      // No API key header — backend holds the keys
     });
 
     // Check response type before parsing JSON
@@ -2799,19 +2716,10 @@ async function scanInvoice() {
 
     renderScanResult(parsed);
 
-    // Show clear source message
-    let sourceMsg = '';
-    if (parsed.source === 'tesseract') {
-      sourceMsg = '✅ Extracted with free OCR (Tesseract)';
-    } else if (parsed.source === 'claude') {
-      sourceMsg = '✅ Free OCR got no text — used Claude AI Vision as fallback. AI extraction successful.';
-    } else {
-      sourceMsg = '✅ Invoice scanned successfully';
-    }
-    if (parsed.currency_code && parsed.currency_code !== 'USD') {
-      sourceMsg += ` · Detected currency: ${parsed.currency_code} (${parsed.currency_symbol})`;
-    }
-    setScanStatus('done', sourceMsg);
+    setScanStatus(
+      'done',
+      `✅ Invoice scanned (${parsed.source === 'tesseract' ? 'Free OCR' : parsed.source === 'claude' ? 'AI Vision' : 'OCR'})`
+    );
 
     populateVehicleSelect();
 
@@ -2832,26 +2740,16 @@ function setScanStatus(type, msg) {
 function renderScanResult(d) {
   document.getElementById('sr-vehicle').textContent = d.vehicle || 'Unknown';
   document.getElementById('sr-date').textContent = d.date || '—';
-
-  // Currency: use detected, then user preference, then default $
-  const sym = d.currency_symbol || getStore('fy_currency_symbol') || '$';
-  const amt = parseFloat(d.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('sr-total').textContent = sym + amt;
-
-  // Show currency badge if non-USD
-  const currBadge = document.getElementById('sr-currency-badge');
-  if (currBadge) {
-    currBadge.textContent = d.currency_code || d.currency || 'USD';
-    currBadge.style.display = d.currency_code && d.currency_code !== 'USD' ? 'inline-block' : 'none';
-  }
-
+  document.getElementById('sr-total').textContent = (d.currency_symbol || '$') + parseFloat(d.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('sr-category').innerHTML = `<span class="repair-cat cat-${(d.category || 'other').toLowerCase()}">${d.category || 'Other'}</span>`;
   document.getElementById('sr-notes').textContent = d.notes || '—';
-  document.getElementById('sr-items').innerHTML = (d.items && d.items.length > 0 ?
-    d.items.map(i => `<div class="scan-item"><span class="scan-item-name">${i}</span></div>`).join('')
+  document.getElementById('sr-items').innerHTML = (d.items && d.items.length > 0 ? 
+    d.items.map(i => `<div class="scan-item"><span class="scan-item-name">${i}</span></div>`).join('') 
     : '<div class="scan-item"><span class="scan-item-name">See invoice</span></div>'
   );
   document.getElementById('scan-result').classList.add('show');
+
+  // Store parsed result globally
   window._lastScanResult = d;
 }
 
@@ -2940,11 +2838,8 @@ function renderRepairsDashboard() {
 function renderAlerts(repairs) {
   const alerts = [];
   const now = new Date();
-  const T = getAlertThresholds();
-  const sym = getCurrencySymbol();
   const thirtyDaysAgo = new Date(now - 30*86400000);
   const ninetyDaysAgo = new Date(now - 90*86400000);
-  const recurringWindow = new Date(now - T.recurringDays*86400000);
 
   // Group by vehicle
   const byVehicle = {};
@@ -2954,34 +2849,29 @@ function renderAlerts(repairs) {
   });
 
   Object.values(byVehicle).forEach(({model, repairs: vRepairs}) => {
-    // Alert: N+ repairs in 90 days (configurable)
+    // Alert: 3+ repairs in 90 days
     const recent90 = vRepairs.filter(r => new Date(r.date) >= ninetyDaysAgo);
-    if (recent90.length >= T.repairCount) {
-      alerts.push({ type:'red', icon:'🔴', title:`${model} — Repeated repairs (${recent90.length} in 90 days)`, desc:`This vehicle has had ${recent90.length} repair incidents in 90 days (threshold: ${T.repairCount}). Strongly suggests replacement should be evaluated.` });
+    if (recent90.length >= 3) {
+      alerts.push({ type:'red', icon:'🔴', title:`${model} — Repeated repairs (${recent90.length} in 90 days)`, desc:`This vehicle has had ${recent90.length} repair incidents in the last 90 days. This pattern strongly suggests replacement should be evaluated.` });
     }
-    // Alert: single repair > threshold
-    const bigRepair = vRepairs.find(r => parseFloat(r.cost) >= T.repairCost && new Date(r.date) >= thirtyDaysAgo);
+    // Alert: single repair > $2000
+    const bigRepair = vRepairs.find(r => parseFloat(r.cost) >= 2000 && new Date(r.date) >= thirtyDaysAgo);
     if (bigRepair) {
-      alerts.push({ type:'yellow', icon:'💸', title:`${model} — High repair cost (${sym}${Math.round(bigRepair.cost).toLocaleString()})`, desc:`A single repair exceeded ${sym}${T.repairCost.toLocaleString()} last month (your threshold). Compare against vehicle value.` });
+      alerts.push({ type:'yellow', icon:'💸', title:`${model} — High repair cost ($${Math.round(bigRepair.cost).toLocaleString()})`, desc:`A single repair exceeded $2,000 last month. Compare this against the vehicle's current market value.` });
     }
-    // Alert: same category repeated in configurable window
-    const inWindow = vRepairs.filter(r => new Date(r.date) >= recurringWindow);
+    // Alert: same category twice in 60 days
+    const sixty = vRepairs.filter(r => new Date(r.date) >= new Date(now-60*86400000));
     const catCount = {};
-    inWindow.forEach(r => catCount[r.category] = (catCount[r.category]||0)+1);
+    sixty.forEach(r => catCount[r.category] = (catCount[r.category]||0)+1);
     Object.entries(catCount).forEach(([cat,count]) => {
-      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️', title:`${model} — Recurring ${cat} issue (${count}× in ${T.recurringDays} days)`, desc:`Same category repeated within your ${T.recurringDays}-day window. May indicate an unresolved underlying problem.` });
+      if (count >= 2) alerts.push({ type:'yellow', icon:'⚠️', title:`${model} — Recurring ${cat} issue`, desc:`${cat} repairs have occurred ${count} times in the last 60 days. This may indicate an underlying problem not being fully resolved.` });
     });
-    // Alert: high downtime
-    const cy = new Date().getFullYear();
-    const annualDowntime = vRepairs.filter(r => new Date(r.date).getFullYear()===cy && r.downtime_days).reduce((s,r)=>s+(parseInt(r.downtime_days)||0),0);
-    if (annualDowntime > T.downtime) {
-      alerts.push({ type:'yellow', icon:'🕐', title:`${model} — High downtime (${annualDowntime} days)`, desc:`Annual downtime exceeds your threshold of ${T.downtime} days. At ~${sym}600/day that's ${sym}${(annualDowntime*600).toLocaleString()} in lost productivity.` });
-    }
   });
 
   const listEl = document.getElementById('alerts-list');
   const countEl = document.getElementById('alerts-count-label');
   countEl.textContent = alerts.length ? `${alerts.length} alert${alerts.length!==1?'s':''}` : 'All clear';
+  maybeEmailAlerts(alerts);
 
   if (!alerts.length) {
     listEl.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>No alerts — fleet looks healthy</div>';
@@ -3063,86 +2953,93 @@ if (invDrop) {
 }
 
 
-// ═══════════ CURRENCY ═══════════
-function getCurrencySymbol() {
-  const stored = getStore('fy_currency_symbol');
-  return stored || '$';
-}
-
-function getCurrencyCode() {
-  const stored = getStore('fy_currency');
-  return stored || 'USD';
-}
-
-function saveCurrencySetting() {
-  const sel = document.getElementById('set-currency');
-  if (!sel) return;
-  const [code, symbol] = sel.value.split('|');
-  setStore('fy_currency', code);
-  setStore('fy_currency_symbol', symbol);
-  toast(`Currency set to ${code} (${symbol})`);
-  // Re-render dashboard to update cost displays
-  renderUnifiedDashboard();
-}
-
-function loadCurrencySetting() {
-  const code = getCurrencyCode();
-  const sel = document.getElementById('set-currency');
-  if (sel) {
-    // Find matching option
-    const opt = Array.from(sel.options).find(o => o.value.startsWith(code + '|'));
-    if (opt) sel.value = opt.value;
-  }
-}
-
-// Format cost with user's chosen currency
-function fmtCost(amount) {
-  const sym = getCurrencySymbol();
-  return sym + Math.round(parseFloat(amount)||0).toLocaleString();
-}
-
-// ═══════════ ALERT THRESHOLDS ═══════════
-function getAlertThresholds() {
-  const stored = getStore('fy_alert_thresholds');
-  return Object.assign({
-    score: 65,           // replacement score >= this
-    repairCost: 2000,    // single repair > this
-    repairCount: 3,      // repairs in 90 days >= this
-    recurringDays: 60,   // same category repeated in X days
-    serviceDays: 14,     // warn X days before service due
-    downtime: 10         // annual downtime days > this
-  }, stored || {});
-}
-
-function saveAlertThresholds() {
-  const t = {
-    score:        parseInt(document.getElementById('alert-score')?.value) || 65,
-    repairCost:   parseInt(document.getElementById('alert-repair-cost')?.value) || 2000,
-    repairCount:  parseInt(document.getElementById('alert-repair-count')?.value) || 3,
-    recurringDays:parseInt(document.getElementById('alert-recurring-days')?.value) || 60,
-    serviceDays:  parseInt(document.getElementById('alert-service-days')?.value) || 14,
-    downtime:     parseInt(document.getElementById('alert-downtime')?.value) || 10,
-  };
-  setStore('fy_alert_thresholds', t);
-  toast('Alert thresholds saved.');
-  renderUnifiedDashboard();
-  if (document.getElementById('sec-repairs')?.style?.display !== 'none') renderRepairsDashboard();
-}
-
-function loadAlertThresholds() {
-  const t = getAlertThresholds();
+// ═══════════ EDIT VEHICLE ═══════════
+async function editVehicle(id) {
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === String(id));
+  if (!v) { toast('Vehicle not found.'); return; }
   const fields = {
-    'alert-score': t.score,
-    'alert-repair-cost': t.repairCost,
-    'alert-repair-count': t.repairCount,
-    'alert-recurring-days': t.recurringDays,
-    'alert-service-days': t.serviceDays,
-    'alert-downtime': t.downtime,
+    'ev-id': id, 'ev-model': v.model||'', 'ev-brand': v.brand||'',
+    'ev-fueltype': v.fueltype||'', 'ev-year': v.year||'', 'ev-mileage': v.mileage||'',
+    'ev-annual': v.annual||'', 'ev-maint': v.maint||'', 'ev-value': v.value||'',
+    'ev-fuelcost': v.fuelcost||'', 'ev-repairs': v.repairs||'', 'ev-downtime': v.downtime||'',
+    'ev-condition': v.condition||'', 'ev-dept': v.dept||'', 'ev-expected': v.expected||''
   };
   Object.entries(fields).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (el) el.value = val;
   });
+  openModal('modal-edit-vehicle');
+}
+
+async function saveEditVehicle() {
+  const id = document.getElementById('ev-id').value;
+  if (!id) { toast('No vehicle selected.'); return; }
+  const fleet = await getFleet();
+  const idx = fleet.findIndex(x => String(x.id) === String(id));
+  if (idx === -1) { toast('Vehicle not found.'); return; }
+  const flds = ['model','brand','fueltype','year','mileage','annual','maint','value','fuelcost','repairs','downtime','condition','dept','expected'];
+  flds.forEach(f => {
+    const el = document.getElementById('ev-' + f);
+    if (el) fleet[idx][f] = el.value;
+  });
+  _fleetCache = null;
+  await saveFleet(fleet);
+  closeModal('modal-edit-vehicle');
+  toast('✅ ' + (fleet[idx].model || 'Vehicle') + ' updated.');
+  if (activeSection === 'fleet') renderTable();
+  else if (activeSection === 'dashboard') renderUnifiedDashboard();
+}
+
+
+// ═══════════ BROWSER NAVIGATION ═══════════
+let _navHistory = ['dashboard'];
+
+window.addEventListener('popstate', function(e) {
+  if (!session) return;
+  const sec = e.state && e.state.sec;
+  if (sec) {
+    _suppressPush = true;
+    nav(sec);
+    _suppressPush = false;
+  } else {
+    // Bottom of history — confirm exit
+    if (confirm('Leave Fleetzy? Your data is saved.')) {
+      // Let browser navigate away
+    } else {
+      history.pushState({ sec: activeSection }, '', '#' + activeSection);
+    }
+  }
+});
+
+window.addEventListener('beforeunload', function(e) {
+  if (session && document.getElementById('app-screen').style.display === 'grid') {
+    e.returnValue = '';
+  }
+});
+
+
+// ═══════════ ALERT EMAILS ═══════════
+let _lastAlertSentHash = '';
+
+function maybeEmailAlerts(alerts) {
+  if (!alerts || !alerts.length || !isSupabaseReady()) return;
+  const hash = alerts.map(a => a.title).sort().join('|');
+  if (hash === _lastAlertSentHash) return;
+  const lastSent = getStore('fy_alert_last_sent');
+  if (lastSent && (Date.now() - lastSent) < 86400000) return; // 24h throttle
+  _lastAlertSentHash = hash;
+  setStore('fy_alert_last_sent', Date.now());
+  fetch(API_BASE + '/api/send-alerts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recipientEmail: session?.email,
+      recipientName: session?.name,
+      org: session?.org || 'Your Fleet',
+      alerts: alerts.map(a => ({ type: a.type, title: a.title, desc: a.desc }))
+    })
+  }).catch(e => console.warn('Alert email (non-fatal):', e.message));
 }
 
 // ═══════════ INIT ═══════════
