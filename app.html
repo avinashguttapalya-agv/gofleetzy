@@ -2160,44 +2160,47 @@ async function exportPDF(type='summary') {
   if(!fleet.length){toast('No vehicles to export.');return;}
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const W=210, margin=18, colW=W-margin*2, today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  const W=210, margin=18, colW=W-margin*2;
+  const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  const sym = getAccountCurrency().symbol;
 
-  // Helpers
-  const scored = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
-  const filtered = type==='critical' ? scored.filter(x=>x.score>=65) : scored;
+  const scored  = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
+  const criticalVehicles = scored.filter(x=>x.score>=65);
+  const watchVehicles    = scored.filter(x=>x.score>=40&&x.score<65);
+  const goodVehicles     = scored.filter(x=>x.score<40);
+  const avgScore = scored.length ? Math.round(scored.reduce((a,x)=>a+x.score,0)/scored.length) : 0;
 
-  let y=margin;
-  // Header bar
+  // Which vehicles to show in the main table
+  const filtered = type==='critical' ? criticalVehicles : scored;
+
+  const reportLabel = type==='critical' ? 'Critical Vehicles Report'
+    : type==='full' ? 'Full Breakdown Report' : 'Fleet Summary Report';
+
+  // ── Header bar ───────────────────────────────────────────────
+  let y = margin;
   doc.setFillColor(15,15,13); doc.rect(0,0,W,28,'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(255,255,255);
   doc.text('Fleetzy',margin,18);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,170);
-  const reportLabel=type==='critical'?'Critical Vehicles Report':type==='full'?'Full Breakdown Report':'Fleet Summary Report';
   doc.text(reportLabel, W-margin, 18, {align:'right'});
-  y=40;
+  y = 38;
 
-  // Meta
+  // ── Meta line ────────────────────────────────────────────────
   doc.setTextColor(60,60,55); doc.setFontSize(9);
-  doc.text(`Organisation: ${session.org||'—'}  ·  Generated: ${today}  ·  Total vehicles: ${fleet.length}`, margin, y);
-  y+=10;
+  doc.text(`Organisation: ${session.org||'—'}  ·  Generated: ${today}  ·  Total fleet: ${fleet.length} vehicles`, margin, y);
+  y += 10;
 
-  // Summary stats
-  const critical=scored.filter(x=>x.score>=65).length;
-  const watch=scored.filter(x=>x.score>=40&&x.score<65).length;
-  const ok=scored.filter(x=>x.score<40).length;
-  const avg=Math.round(scored.reduce((a,x)=>a+x.score,0)/scored.length);
-
-  // Stat boxes
-  const boxes=[
-    {label:'Total Fleet',val:fleet.length},
-    {label:'Avg Score',val:avg},
-    {label:'Critical',val:critical,c:[168,40,40]},
-    {label:'Watch',val:watch,c:[184,146,14]},
-    {label:'Good',val:ok,c:[46,125,82]},
+  // ── KPI stat boxes (all report types) ───────────────────────
+  const boxes = [
+    {label:'Total Fleet',  val:fleet.length,             c:null},
+    {label:'Avg Score',    val:avgScore,                  c:null},
+    {label:'Replace Now',  val:criticalVehicles.length,   c:[168,40,40]},
+    {label:'Watch Zone',   val:watchVehicles.length,      c:[184,146,14]},
+    {label:'Healthy',      val:goodVehicles.length,       c:[46,125,82]},
   ];
-  const bw=(colW)/boxes.length;
-  boxes.forEach((b,i)=>{
-    const bx=margin+i*bw;
+  const bw = colW / boxes.length;
+  boxes.forEach((b,i) => {
+    const bx = margin + i*bw;
     doc.setFillColor(246,245,240); doc.roundedRect(bx,y,bw-3,20,2,2,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(16);
     if(b.c) doc.setTextColor(...b.c); else doc.setTextColor(15,15,13);
@@ -2205,55 +2208,174 @@ async function exportPDF(type='summary') {
     doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,112);
     doc.text(b.label, bx+bw/2-1.5, y+18, {align:'center'});
   });
-  y+=28;
+  y += 28;
 
-  // Table header
-  doc.setFillColor(30,30,28); doc.rect(margin,y,colW,7,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-  const cols=[['Vehicle',55],['Year',16],['Mileage',22],['CPM',20],['Score',16],['Status',22],['Dept',22]];
-  let cx=margin;
-  cols.forEach(([label,w])=>{doc.text(label,cx+2,y+4.5);cx+=w;});
-  y+=7;
+  // ════════════════════════════════════════════════════════════
+  // FLEET SUMMARY — condensed table: all vehicles, key metrics
+  // ════════════════════════════════════════════════════════════
+  if (type === 'summary') {
+    // Section heading
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(15,15,13);
+    doc.text('Fleet Overview', margin, y); y += 6;
 
-  // Table rows
-  filtered.forEach(({v,score:s,cpmVal},i)=>{
-    if(y>270){doc.addPage();y=margin;} // new page if needed
-    const bg=i%2===0?[255,255,255]:[248,247,243];
-    doc.setFillColor(...bg); doc.rect(margin,y,colW,7,'F');
-    const sc=s>=65?[168,40,40]:s>=40?[184,146,14]:[46,125,82];
-    doc.setTextColor(30,30,28); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-    cx=margin;
-    const rowData=[[v.model,55],[v.year,16],[(parseInt(v.mileage)).toLocaleString()+' km',22],[cpmVal,20]];
-    rowData.forEach(([text,w])=>{doc.text(String(text).slice(0,22),cx+2,y+4.5);cx+=w;});
-    doc.setTextColor(...sc); doc.setFont('helvetica','bold');
-    doc.text(String(s),cx+2,y+4.5); cx+=16;
-    doc.setFont('helvetica','normal'); doc.setFontSize(7);
-    // Status pill bg
-    doc.setFillColor(...sc,40); doc.roundedRect(cx+1,y+1,20,5,1.5,1.5,'F');
-    doc.setTextColor(...sc); doc.text(statusLabel(s),cx+2,y+4.5); cx+=22;
-    doc.setTextColor(120,120,112); doc.text((v.dept||'—').slice(0,18),cx+2,y+4.5);
+    // Table header
+    doc.setFillColor(30,30,28); doc.rect(margin,y,colW,7,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    const sumCols=[['Vehicle',50],['Yr',14],['Mileage',24],['Maint/yr',22],['CPM',20],['Score',16],['Status',22]];
+    let cx=margin;
+    sumCols.forEach(([l,w])=>{ doc.text(l,cx+2,y+4.5); cx+=w; });
     y+=7;
-  });
 
-  // Full breakdown for 'full' type
-  if(type==='full'){
-    filtered.forEach(({v,score:s,bd})=>{
-      if(y>240){doc.addPage();y=margin;}
-      y+=8;
-      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(15,15,13);
-      doc.text(`${v.model} (${v.year}) — Score: ${s}/100`,margin,y); y+=6;
-      bd.forEach(f=>{
+    scored.forEach(({v,score:s,cpmVal},i)=>{
+      if(y>270){doc.addPage();y=margin;}
+      const bg=i%2===0?[255,255,255]:[248,247,243];
+      doc.setFillColor(...bg); doc.rect(margin,y,colW,7,'F');
+      const sc=s>=65?[168,40,40]:s>=40?[184,146,14]:[46,125,82];
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(30,30,28);
+      cx=margin;
+      const maintFmt = v.maint ? sym+parseInt(v.maint).toLocaleString() : '—';
+      const rowData=[[v.model,50],[v.year,14],[parseInt(v.mileage||0).toLocaleString()+' km',24],[maintFmt,22],[cpmVal||'—',20]];
+      rowData.forEach(([text,w])=>{ doc.text(String(text).slice(0,20),cx+2,y+4.5); cx+=w; });
+      doc.setTextColor(...sc); doc.setFont('helvetica','bold');
+      doc.text(String(s),cx+2,y+4.5); cx+=16;
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+      doc.setFillColor(...sc,30); doc.roundedRect(cx+1,y+1,21,5,1.5,1.5,'F');
+      doc.setTextColor(...sc); doc.text(statusLabel(s),cx+2,y+4.5);
+      y+=7;
+    });
+
+    // Top 3 action items
+    if(criticalVehicles.length) {
+      y+=6;
+      if(y>260){doc.addPage();y=margin;}
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(168,40,40);
+      doc.text('Action Required', margin, y); y+=6;
+      criticalVehicles.slice(0,3).forEach(({v,score:s})=>{
         if(y>280){doc.addPage();y=margin;}
-        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80,80,75);
-        doc.text(`• ${f.label}: ${f.val} — ${f.pts}/${f.max} pts`,margin+4,y); y+=5;
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,75);
+        doc.text(`• ${v.model} (${v.year}) — score ${s}/100. Evaluate for replacement this quarter.`,margin+3,y);
+        y+=5;
       });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // CRITICAL VEHICLES — only score ≥65, full cost context
+  // ════════════════════════════════════════════════════════════
+  else if (type === 'critical') {
+    if(!criticalVehicles.length){
+      doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(80,80,75);
+      doc.text('No vehicles currently exceed the critical threshold (score ≥ 65).', margin, y);
+      y+=8;
+    } else {
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(168,40,40);
+      doc.text(`${criticalVehicles.length} vehicle${criticalVehicles.length!==1?'s':''} require immediate attention`, margin, y); y+=6;
+
+      // Table header
+      doc.setFillColor(168,40,40); doc.rect(margin,y,colW,7,'F');
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+      const critCols=[['Vehicle',50],['Year',14],['Mileage',22],['Value',22],['Maint/yr',22],['CPM',18],['Score',16]];
+      let cx=margin;
+      critCols.forEach(([l,w])=>{ doc.text(l,cx+2,y+4.5); cx+=w; });
+      y+=7;
+
+      criticalVehicles.forEach(({v,score:s,cpmVal,bd},i)=>{
+        if(y>240){doc.addPage();y=margin;}
+        const bg=i%2===0?[255,245,245]:[255,255,255];
+        doc.setFillColor(...bg); doc.rect(margin,y,colW,7,'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(30,30,28);
+        cx=margin;
+        const valueFmt = v.value ? sym+parseInt(v.value).toLocaleString() : '—';
+        const maintFmt = v.maint ? sym+parseInt(v.maint).toLocaleString() : '—';
+        const rowData=[[v.model,50],[v.year,14],[parseInt(v.mileage||0).toLocaleString()+' km',22],[valueFmt,22],[maintFmt,22],[cpmVal||'—',18]];
+        rowData.forEach(([text,w])=>{ doc.text(String(text).slice(0,20),cx+2,y+4.5); cx+=w; });
+        doc.setTextColor(168,40,40); doc.setFont('helvetica','bold');
+        doc.text(String(s),cx+2,y+4.5);
+        y+=7;
+
+        // Key factors for each critical vehicle
+        const topFactors = (bd||[]).filter(f=>f.pts>0).sort((a,b)=>b.pts-a.pts).slice(0,3);
+        if(topFactors.length) {
+          doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,80,80);
+          topFactors.forEach(f=>{
+            if(y>280){doc.addPage();y=margin;}
+            doc.text(`   ↳ ${f.label}: ${f.val} (${f.pts}/${f.max} pts)`,margin+3,y); y+=5;
+          });
+        }
+      });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // FULL BREAKDOWN — every vehicle with all 7 scoring factors
+  // ════════════════════════════════════════════════════════════
+  else if (type === 'full') {
+    // Summary table first
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(15,15,13);
+    doc.text('All Vehicles — Scoring Summary', margin, y); y+=6;
+
+    doc.setFillColor(30,30,28); doc.rect(margin,y,colW,7,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    const fullCols=[['Vehicle',55],['Year',16],['Mileage',22],['CPM',20],['Score',16],['Status',22],['Dept',22]];
+    let cx=margin;
+    fullCols.forEach(([l,w])=>{ doc.text(l,cx+2,y+4.5); cx+=w; });
+    y+=7;
+
+    scored.forEach(({v,score:s,cpmVal},i)=>{
+      if(y>270){doc.addPage();y=margin;}
+      const bg=i%2===0?[255,255,255]:[248,247,243];
+      doc.setFillColor(...bg); doc.rect(margin,y,colW,7,'F');
+      const sc=s>=65?[168,40,40]:s>=40?[184,146,14]:[46,125,82];
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(30,30,28);
+      cx=margin;
+      const rowData=[[v.model,55],[v.year,16],[parseInt(v.mileage||0).toLocaleString()+' km',22],[cpmVal||'—',20]];
+      rowData.forEach(([text,w])=>{ doc.text(String(text).slice(0,22),cx+2,y+4.5); cx+=w; });
+      doc.setTextColor(...sc); doc.setFont('helvetica','bold');
+      doc.text(String(s),cx+2,y+4.5); cx+=16;
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+      doc.setFillColor(...sc,30); doc.roundedRect(cx+1,y+1,21,5,1.5,1.5,'F');
+      doc.setTextColor(...sc); doc.text(statusLabel(s),cx+2,y+4.5); cx+=22;
+      doc.setTextColor(120,120,112); doc.text((v.dept||'—').slice(0,18),cx+2,y+4.5);
+      y+=7;
+    });
+
+    // Full per-vehicle factor breakdown on new section
+    y+=10;
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(15,15,13);
+    doc.text('Per-Vehicle Score Breakdown (7 Factors)', margin, y); y+=8;
+
+    scored.forEach(({v,score:s,bd})=>{
+      if(y>240){doc.addPage();y=margin;}
+      // Vehicle header
+      const sc=s>=65?[168,40,40]:s>=40?[184,146,14]:[46,125,82];
+      doc.setFillColor(246,245,240); doc.rect(margin,y,colW,8,'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...sc);
+      doc.text(`${v.model} (${v.year})`,margin+3,y+5.5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,75);
+      doc.text(`Score: ${s}/100  ·  ${statusLabel(s)}  ·  ${parseInt(v.mileage||0).toLocaleString()} km`,margin+90,y+5.5);
+      y+=9;
+      // Factor rows
+      (bd||[]).forEach(f=>{
+        if(y>278){doc.addPage();y=margin;}
+        const barW = Math.round((f.pts/f.max)*40);
+        doc.setFillColor(235,233,228); doc.rect(margin+3,y+1,40,3,'F');
+        const fc=f.pts/f.max>=0.7?[168,40,40]:f.pts/f.max>=0.4?[184,146,14]:[46,125,82];
+        doc.setFillColor(...fc); doc.rect(margin+3,y+1,barW,3,'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(60,60,55);
+        doc.text(`${f.label}: ${f.val}`,margin+46,y+4);
+        doc.setTextColor(...fc); doc.setFont('helvetica','bold');
+        doc.text(`${f.pts}/${f.max} pts`,W-margin-2,y+4,{align:'right'});
+        y+=6;
+      });
+      y+=4;
     });
   }
 
-  // Footer
+  // ── Footer ───────────────────────────────────────────────────
   const totalPages=doc.internal.getNumberOfPages();
   for(let p=1;p<=totalPages;p++){
-    doc.setPage(p); doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(160,160,152);
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(160,160,152);
     doc.text(`Fleetzy Fleet Report · ${today} · Page ${p} of ${totalPages}`,W/2,292,{align:'center'});
     doc.line(margin,288,W-margin,288);
   }
@@ -2818,7 +2940,7 @@ function applyPlateResult() {
 async function renderUnifiedDashboard() {
   const fleet = await getFleet();
   const repairs = await getRepairs();
-  const services = getServiceRecords();
+  const services = await getServiceRecords();
   const now = new Date();
   const CY = now.getFullYear();
 
