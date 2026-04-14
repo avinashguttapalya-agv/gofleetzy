@@ -1359,7 +1359,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 // Example: https://fleetzy-api.onrender.com
 // Once api.gofleetzy.com CNAME + Render custom domain are configured,
 // change this to 'https://api.gofleetzy.com'
-const RENDER_URL = 'https://fleetzy-backend.onrender.com'; // ← REPLACE with your Render URL
+const RENDER_URL = 'https://fleetzy-api.onrender.com'; // ← REPLACE with your Render URL
 
 const API_BASE = (function() {
   // 1. Manual override saved in Settings takes priority
@@ -1458,8 +1458,8 @@ function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Anon key is safe to hardcode — it is designed to be public.
 // RLS policies protect all data. Only service_role key must stay secret.
 // Replace these with your actual Supabase project URL and anon key.
-const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
-const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
+const SB_URL = 'YOUR_SUPABASE_URL';          // e.g. https://xxxx.supabase.co
+const SB_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // eyJhbGc... from Project Settings → API
 
 function initSupabase() {
   // Use saved override first, then fall back to the hardcoded defaults above
@@ -1768,49 +1768,64 @@ async function doSignUp() {
 }
 
 function demoLogin() {
-  const accounts = getAccounts();
   const demoId = 'demo_account';
-  if (!accounts[demoId]) {
-    accounts[demoId] = { id: demoId, name: 'Demo Manager', email: 'demo@gofleetzy.com', password: 'demo1234', org: 'Demo Fleet Co.', plan: 'pro' };
-    saveAccounts(accounts);
-    // Seed demo repair records
-    const demoRepairs = [
-      {id:1,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-01-15',category:'Engine',items:'Timing belt replacement, coolant flush',cost:1850,notes:'High wear detected on timing components'},
-      {id:2,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-02-20',category:'Brakes',items:'Front brake pads and discs',cost:620,notes:''},
-      {id:3,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-03-08',category:'Electrical',items:'Alternator replacement',cost:980,notes:'Battery not charging correctly'},
-      {id:4,vehicleId:3,vehicleModel:'Honda CR-V',date:'2026-01-22',category:'Service',items:'Full service, oil change, filters',cost:340,notes:''},
-      {id:5,vehicleId:3,vehicleModel:'Honda CR-V',date:'2026-02-14',category:'Tyres',items:'2x front tyres replaced',cost:480,notes:'Worn to legal limit'},
-      {id:6,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2025-11-10',category:'Engine',items:'Gearbox service, transfer case oil',cost:1240,notes:'Gear slipping reported by driver'},
-      {id:7,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2026-01-05',category:'Brakes',items:'All 4 brake pads, rear discs',cost:890,notes:''},
-      {id:8,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2026-03-01',category:'Electrical',items:'Starter motor, battery replacement',cost:760,notes:'Persistent starting issues'},
-      {id:9,vehicleId:2,vehicleModel:'Toyota Camry',date:'2026-02-28',category:'Service',items:'Annual service, cabin air filter',cost:290,notes:'All good'},
-      {id:10,vehicleId:4,vehicleModel:'Nissan Navara',date:'2026-01-18',category:'Service',items:'Oil change, brake fluid flush',cost:180,notes:''},
-    ];
-    setStore('fy_repairs_demo_account', demoRepairs);
-    const demoServices = [
-      {vehicleId:1,vehicleModel:'Ford Transit 2.0',lastDate:'2025-11-01',nextDate:'2026-05-01',intervalDays:180,notes:'Full service'},
-      {vehicleId:2,vehicleModel:'Toyota Camry',lastDate:'2026-01-10',nextDate:'2027-01-10',intervalDays:365,notes:'Annual service'},
-      {vehicleId:3,vehicleModel:'Honda CR-V',lastDate:'2025-09-15',nextDate:'2026-03-15',intervalDays:180,notes:'Oil change + check'},
-      {vehicleId:4,vehicleModel:'Nissan Navara',lastDate:'2026-02-20',nextDate:'2027-02-20',intervalDays:365,notes:'Full service'},
-      {vehicleId:5,vehicleModel:'Jeep Wrangler',lastDate:'2025-10-01',nextDate:'2026-04-01',intervalDays:180,notes:'Service + tyres check'},
-    ];
-    setStore('fy_svc_demo_account', demoServices);
-    setStore('fy_team_'+demoId, [
-      { id:1, name:'Demo Manager', email:'demo@gofleetzy.com', role:'admin', joined:'1 Jan 2026' },
-      { id:2, name:'Sarah Field', email:'sarah@democo.com', role:'manager', joined:'10 Feb 2026' },
-      { id:3, name:'Tom Viewer', email:'tom@democo.com', role:'viewer', joined:'15 Mar 2026' },
-    ]);
-    setStore('fy_fleet_'+demoId, [
-      {id:1,model:'Ford Transit 2.0',year:'2014',mileage:'235000',brand:'ford',fueltype:'diesel',annual:'38000',maint:'5200',value:'8000',fuelcost:'4800',repairs:'5',downtime:'18',condition:'fair',dept:'Logistics',expected:'40000'},
-      {id:2,model:'Toyota Camry',year:'2019',mileage:'88000',brand:'toyota',fueltype:'gasoline',annual:'22000',maint:'1200',value:'22000',fuelcost:'2200',repairs:'1',downtime:'2',condition:'good',dept:'Sales',expected:'25000'},
-      {id:3,model:'Honda CR-V',year:'2017',mileage:'145000',brand:'honda',fueltype:'gasoline',annual:'28000',maint:'2800',value:'14000',fuelcost:'3100',repairs:'3',downtime:'7',condition:'fair',dept:'Field Service',expected:'30000'},
-      {id:4,model:'Nissan Navara',year:'2021',mileage:'42000',brand:'nissan',fueltype:'diesel',annual:'18000',maint:'800',value:'32000',fuelcost:'2400',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'20000'},
-      {id:5,model:'Jeep Wrangler',year:'2016',mileage:'178000',brand:'jeep',fueltype:'gasoline',annual:'12000',maint:'4500',value:'11000',fuelcost:'2800',repairs:'4',downtime:'11',condition:'fair',dept:'Ops',expected:'22000'},
-    ]);
-  }
-  document.getElementById('si-email').value = 'demo@gofleetzy.com';
-  document.getElementById('si-password').value = 'demo1234';
-  doSignIn();
+
+  // Always re-seed demo data so it's fresh on every demo load
+  const accounts = getAccounts();
+  accounts[demoId] = { id:demoId, name:'Demo Manager', email:'demo@gofleetzy.com',
+    password:'demo1234', org:'Demo Fleet Co.', plan:'pro' };
+  saveAccounts(accounts);
+
+  setStore('fy_fleet_'+demoId, [
+    {id:1,model:'Ford Transit 2.0',year:'2014',mileage:'235000',brand:'ford',fueltype:'diesel',annual:'38000',maint:'5200',value:'8000',fuelcost:'4800',repairs:'5',downtime:'18',condition:'fair',dept:'Logistics',expected:'40000'},
+    {id:2,model:'Toyota Camry',year:'2019',mileage:'88000',brand:'toyota',fueltype:'gasoline',annual:'22000',maint:'1200',value:'22000',fuelcost:'2200',repairs:'1',downtime:'2',condition:'good',dept:'Sales',expected:'25000'},
+    {id:3,model:'Honda CR-V',year:'2017',mileage:'145000',brand:'honda',fueltype:'gasoline',annual:'28000',maint:'2800',value:'14000',fuelcost:'3100',repairs:'3',downtime:'7',condition:'fair',dept:'Field Service',expected:'30000'},
+    {id:4,model:'Nissan Navara',year:'2021',mileage:'42000',brand:'nissan',fueltype:'diesel',annual:'18000',maint:'800',value:'32000',fuelcost:'2400',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'20000'},
+    {id:5,model:'Jeep Wrangler',year:'2016',mileage:'178000',brand:'jeep',fueltype:'gasoline',annual:'12000',maint:'4500',value:'11000',fuelcost:'2800',repairs:'4',downtime:'11',condition:'fair',dept:'Ops',expected:'22000'},
+  ]);
+
+  setStore('fy_repairs_'+demoId, [
+    {id:1,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-01-15',category:'Engine',items:'Timing belt replacement, coolant flush',cost:1850,notes:'High wear detected on timing components'},
+    {id:2,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-02-20',category:'Brakes',items:'Front brake pads and discs',cost:620,notes:''},
+    {id:3,vehicleId:1,vehicleModel:'Ford Transit 2.0',date:'2026-03-08',category:'Electrical',items:'Alternator replacement',cost:980,notes:'Battery not charging correctly'},
+    {id:4,vehicleId:3,vehicleModel:'Honda CR-V',date:'2026-01-22',category:'Service',items:'Full service, oil change, filters',cost:340,notes:''},
+    {id:5,vehicleId:3,vehicleModel:'Honda CR-V',date:'2026-02-14',category:'Tyres',items:'2x front tyres replaced',cost:480,notes:'Worn to legal limit'},
+    {id:6,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2025-11-10',category:'Engine',items:'Gearbox service, transfer case oil',cost:1240,notes:'Gear slipping reported by driver'},
+    {id:7,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2026-01-05',category:'Brakes',items:'All 4 brake pads, rear discs',cost:890,notes:''},
+    {id:8,vehicleId:5,vehicleModel:'Jeep Wrangler',date:'2026-03-01',category:'Electrical',items:'Starter motor, battery replacement',cost:760,notes:'Persistent starting issues'},
+    {id:9,vehicleId:2,vehicleModel:'Toyota Camry',date:'2026-02-28',category:'Service',items:'Annual service, cabin air filter',cost:290,notes:'All good'},
+    {id:10,vehicleId:4,vehicleModel:'Nissan Navara',date:'2026-01-18',category:'Service',items:'Oil change, brake fluid flush',cost:180,notes:''},
+  ]);
+
+  setStore('fy_svc_'+demoId, [
+    {vehicleId:1,vehicleModel:'Ford Transit 2.0',lastDate:'2025-11-01',nextDate:'2026-05-01',intervalDays:180,notes:'Full service'},
+    {vehicleId:2,vehicleModel:'Toyota Camry',lastDate:'2026-01-10',nextDate:'2027-01-10',intervalDays:365,notes:'Annual service'},
+    {vehicleId:3,vehicleModel:'Honda CR-V',lastDate:'2025-09-15',nextDate:'2026-03-15',intervalDays:180,notes:'Oil change + check'},
+    {vehicleId:4,vehicleModel:'Nissan Navara',lastDate:'2026-02-20',nextDate:'2027-02-20',intervalDays:365,notes:'Full service'},
+    {vehicleId:5,vehicleModel:'Jeep Wrangler',lastDate:'2025-10-01',nextDate:'2026-04-01',intervalDays:180,notes:'Service + tyres check'},
+  ]);
+
+  setStore('fy_sched_'+demoId, [
+    {id:101,vehicleId:1,vehicleModel:'Ford Transit 2.0',category:'Service',scheduledDate:'2026-05-15',notes:'Full service + cambelt check',estimatedCost:850,status:'pending'},
+    {id:102,vehicleId:5,vehicleModel:'Jeep Wrangler',category:'Tyres',scheduledDate:'2026-04-28',notes:'Replace all 4 tyres',estimatedCost:1200,status:'pending'},
+    {id:103,vehicleId:3,vehicleModel:'Honda CR-V',category:'Brakes',scheduledDate:'2026-06-10',notes:'Rear brake discs and pads',estimatedCost:480,status:'pending'},
+  ]);
+
+  setStore('fy_team_'+demoId, [
+    { id:1, name:'Demo Manager', email:'demo@gofleetzy.com', role:'admin', joined:'1 Jan 2026' },
+    { id:2, name:'Sarah Field', email:'sarah@democo.com', role:'manager', joined:'10 Feb 2026' },
+    { id:3, name:'Tom Viewer', email:'tom@democo.com', role:'viewer', joined:'15 Mar 2026' },
+  ]);
+
+  // Set session directly — demo never goes through Supabase auth
+  session = { accountId:demoId, email:'demo@gofleetzy.com', name:'Demo Manager',
+    org:'Demo Fleet Co.', plan:'pro', role:'admin' };
+  setStore('fy_session', session);
+  _fleetCache = null;
+  _teamCache = null;
+
+  launchApp();
+  toast('✅ Demo account loaded — 5 vehicles, Pro plan features enabled.');
 }
 
 async function signOut() {
