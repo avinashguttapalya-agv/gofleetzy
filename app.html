@@ -1359,7 +1359,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 // Example: https://fleetzy-api.onrender.com
 // Once api.gofleetzy.com CNAME + Render custom domain are configured,
 // change this to 'https://api.gofleetzy.com'
-const RENDER_URL = 'https://fleetzy-api.onrender.com'; // ← REPLACE with your Render URL
+const RENDER_URL = 'https://fleetzy-backend.onrender.com'; // ← REPLACE with your Render URL
 
 const API_BASE = (function() {
   // 1. Manual override saved in Settings takes priority
@@ -1458,8 +1458,8 @@ function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Anon key is safe to hardcode — it is designed to be public.
 // RLS policies protect all data. Only service_role key must stay secret.
 // Replace these with your actual Supabase project URL and anon key.
-const SB_URL = 'YOUR_SUPABASE_URL';          // e.g. https://xxxx.supabase.co
-const SB_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // eyJhbGc... from Project Settings → API
+const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
 
 function initSupabase() {
   // Use saved override first, then fall back to the hardcoded defaults above
