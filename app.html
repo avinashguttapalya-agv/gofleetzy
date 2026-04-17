@@ -429,7 +429,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
     <!-- SIGN IN -->
     <div id="tab-signin">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="si-email" type="email" placeholder="you@company.com" /></div>
-      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="si-password" type="password" placeholder="••••••••" /></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="si-password" type="password" placeholder="••••••••" autocomplete="current-password" /></div>
       <button class="btn btn-primary" style="margin-top:6px" onclick="doSignIn()">Sign In →</button>
       <div id="auth-diag" style="margin-top:12px;font-size:11px;background:var(--mist);border-radius:7px;padding:8px 12px;display:none;line-height:1.5">
         <div id="auth-diag-text"></div>
@@ -508,7 +508,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div class="topbar-right">
         <span id="plan-tag" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:var(--accent-light);color:var(--accent)"></span>
         <button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add Vehicle</button>
-        <button class="btn btn-primary btn-sm" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="btn btn-primary btn-sm" id="topbar-pdf-btn" onclick="exportPDF()" style="display:none">📄 Export PDF</button>
       </div>
     </div>
 
@@ -784,21 +784,17 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         <div class="card">
           <div class="card-header"><div class="card-title">Account Settings</div></div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:18px">
-            <div style="background:var(--mist);border-radius:9px;padding:14px 16px;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">Backend API</div>
-              <div style="font-size:13px;color:var(--stone);margin-bottom:10px">Your backend URL. Change this if you deploy to a custom domain.</div>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input class="form-input" id="set-api-base" placeholder="https://api.gofleetzy.com" style="flex:1"/>
-                <button class="btn btn-ghost btn-sm" onclick="setApiBase(document.getElementById('set-api-base').value)">Save & Reload</button>
-              </div>
-              <div style="font-size:11px;color:var(--stone);margin-top:6px">Current: <code id="api-base-display2"></code></div>
+            <!-- Backend API — hidden from user-facing settings (developer config only) -->
+            <div style="display:none">
+              <input class="form-input" id="set-api-base" placeholder="https://api.gofleetzy.com"/>
+              <code id="api-base-display2"></code>
             </div>
             <div class="form-group"><label class="form-label">Organisation Name</label><input class="form-input" id="set-org" placeholder="Your company name"/></div>
             <div class="form-group"><label class="form-label">Your Name</label><input class="form-input" id="set-name" placeholder="Your full name"/></div>
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="set-email" type="email" placeholder="you@company.com"/></div>
             <div class="form-group">
               <label class="form-label">Account Currency</label>
-              <select class="form-select" id="set-currency">
+              <select class="form-select" id="set-currency" onchange="setAccountCurrency(this.value);renderUnifiedDashboard();">
                 <option value="USD|$|en">USD — US Dollar ($)</option>
                 <option value="EUR|€|es">EUR — Euro (€)</option>
                 <option value="GBP|£|en">GBP — British Pound (£)</option>
@@ -824,17 +820,12 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               </div>
             </div>
             <button class="btn btn-primary" style="width:auto" onclick="saveSettings()">Save Changes</button>
-            <div style="border-top:1px solid var(--border);padding-top:16px">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">Supabase Database</div>
-              <div style="font-size:13px;color:var(--stone);margin-bottom:12px;line-height:1.5">Connect your Supabase project so fleet data syncs across all devices and team members. Get your keys at <a href="https://supabase.com" target="_blank" style="color:var(--accent)">supabase.com</a> → Project Settings → API.</div>
-              <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
-                <div class="form-group" style="margin:0"><label class="form-label">Supabase Project URL</label><input class="form-input" id="set-sb-url" placeholder="https://xxxx.supabase.co"/></div>
-                <div class="form-group" style="margin:0"><label class="form-label">Supabase Anon Key</label><input class="form-input" id="set-sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."/></div>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center">
-                <button class="btn btn-ghost btn-sm" onclick="saveSupabaseConfig()">Save & Connect</button>
-                <span id="sb-status" style="font-size:12px;color:var(--stone)"></span>
-              </div>
+            <!-- Supabase config — hidden from user-facing settings (pre-configured by developer) -->
+            <div style="display:none">
+              <input class="form-input" id="set-sb-url" placeholder="https://xxxx.supabase.co"/>
+              <input class="form-input" id="set-sb-key" placeholder="eyJ..."/>
+              <button onclick="saveSupabaseConfig()">Save</button>
+              <span id="sb-status"></span>
             </div>
             <div style="border-top:1px solid var(--border);padding-top:18px">
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px">🔔 Alert Thresholds</div>
@@ -1987,6 +1978,13 @@ async function signOut() {
   if (isSupabaseReady()) { try { await sb.auth.signOut(); } catch(e) {} }
   session = null; _fleetCache = null; _teamCache = null;
   localStorage.removeItem('fy_session');
+  // Clear credentials so they don't persist after logout
+  const emailEl = document.getElementById('si-email');
+  const passEl  = document.getElementById('si-password');
+  if (emailEl) emailEl.value = '';
+  if (passEl)  passEl.value  = '';
+  // Also switch back to Sign In tab in case user was on Sign Up
+  switchAuthTab('signin');
   document.getElementById('app-screen').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
 }
@@ -2186,6 +2184,9 @@ function nav(sec, opts) {
   if(sec==='dashboard') renderUnifiedDashboard();
   if(sec==='team') renderTeam();
   if(sec==='settings') { const u=getStore('fy_sb_url')||''; const k=getStore('fy_sb_key')||''; if(document.getElementById('set-sb-url')) { document.getElementById('set-sb-url').value=u; document.getElementById('set-sb-key').value=k; if(u&&k){document.getElementById('sb-status').textContent='✅ Connected';document.getElementById('sb-status').style.color='var(--green)';}}};
+  // Show Export PDF button only on Fleet Overview
+  const topbarPdf = document.getElementById('topbar-pdf-btn');
+  if (topbarPdf) topbarPdf.style.display = sec==='fleet' ? '' : 'none';
   if(sec==='settings') loadSettings();
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='add') { initPlateScanner(); }
@@ -2737,6 +2738,9 @@ function launchApp(){
 
   // Set initial history state
   try { history.replaceState({ sec: startSec }, '', '#' + startSec); } catch(e) {}
+
+  // Always sync the currency dropdown BEFORE any save can fire
+  loadCurrencySetting();
 
   nav(startSec, { noHistory: true });
   renderPlanUI();
@@ -4177,7 +4181,9 @@ async function saveEditVehicle() {
 // ═══════════ CURRENCY SYSTEM ═══════════
 // Stored as "CODE|SYMBOL|LOCALE" e.g. "EUR|€|es"
 function getAccountCurrency() {
-  const stored = localStorage.getItem('fy_account_currency');
+  // Per-account key so switching accounts doesn't bleed currency settings
+  const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
+  const stored = localStorage.getItem(key) || localStorage.getItem('fy_account_currency');
   if (stored) {
     const [code, symbol, locale] = stored.split('|');
     return { code, symbol, locale: locale || 'en' };
@@ -4187,7 +4193,10 @@ function getAccountCurrency() {
 
 function setAccountCurrency(val) {
   // val = "USD|$|en"
-  localStorage.setItem('fy_account_currency', val);
+  // Save under both per-account key (authoritative) and global fallback
+  const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
+  localStorage.setItem(key, val);
+  localStorage.setItem('fy_account_currency', val); // keep global for backwards compat
 }
 
 // Exchange rates vs USD (approximate, update quarterly)
@@ -4242,14 +4251,18 @@ function parseLocalizedNumber(str, locale) {
 
 // ═══════════ CURRENCY IN SETTINGS ═══════════
 function loadCurrencySetting() {
-  const cur = localStorage.getItem('fy_account_currency') || 'USD|$|en';
+  const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
+  const cur = localStorage.getItem(key) || localStorage.getItem('fy_account_currency') || 'USD|$|en';
   const sel = document.getElementById('set-currency');
   if (!sel) return;
-  // Find matching option by code prefix
+  // Find matching option by code prefix — set the full value so it sticks
   const code = cur.split('|')[0];
+  let matched = false;
   Array.from(sel.options).forEach(o => {
-    if (o.value.startsWith(code + '|')) sel.value = o.value;
+    if (o.value.startsWith(code + '|')) { sel.value = o.value; matched = true; }
   });
+  // If no match found (shouldn't happen) — leave as default
+  if (!matched) sel.value = sel.options[0].value;
 }
 
 // ═══════════ INVOICE EDIT FUNCTIONS ═══════════
