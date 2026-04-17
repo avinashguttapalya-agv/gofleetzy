@@ -1653,13 +1653,25 @@ async function getFleet() {
   if (_fleetCache) return _fleetCache;
   if (isSupabaseReady() && session?.accountId) {
     try {
-      const { data, error } = await sb.from('vehicles').select('*').eq('account_id', session.accountId).order('created_at', {ascending:false});
+      // No ORDER BY — avoids failing if created_at column doesn't exist
+      const { data, error } = await sb.from('vehicles').select('*').eq('account_id', session.accountId);
       if (error) throw error;
-      _fleetCache = data || [];
+      // Merge with any locally-queued vehicles not yet synced
+      const queued  = getStore(WQ_KEY()) || [];
+      const sbIds   = new Set((data||[]).map(r => String(r.id)));
+      const pending = queued.filter(v => !sbIds.has(String(v.id)));
+      _fleetCache   = [...(data||[]).map(fromSupabaseVehicle), ...pending];
       return _fleetCache;
-    } catch(e) { console.warn('Supabase read failed, using localStorage:', e.message); }
+    } catch(e) { console.warn('Supabase getFleet failed, using localStorage:', e.message); }
   }
-  return getStore('fy_fleet_'+session?.accountId) || [];
+  // No Supabase — use localStorage + queue together
+  const local   = getStore('fy_fleet_'+session?.accountId) || [];
+  const queued  = getStore(WQ_KEY()) || [];
+  const qIds    = new Set(queued.map(v => String(v.id)));
+  // Avoid duplication: local may already contain queued vehicles
+  const merged  = [...queued, ...local.filter(v => !qIds.has(String(v.id)))];
+  _fleetCache   = merged;
+  return _fleetCache;
 }
 
 async function saveFleet(f) {
@@ -1679,60 +1691,143 @@ async function saveFleet(f) {
   setStore('fy_fleet_'+session.accountId, f);
 }
 
-// Known Supabase vehicles table columns — add new columns here after running migrations
-const SB_VEHICLE_COLS = ['id','model','year','mileage','brand','fueltype','annual','maint',
-  'value','fuelcost','repairs','downtime','condition','dept','expected',
-  // Extended columns — add to Supabase schema with the migration SQL below
-  'insurance','insurer','ins_renewal','battery_kwh','battery_health','charge_type'];
+// ─── Vehicle row helper: maps JS camelCase → Supabase snake_case ─────────────
+function toSupabaseVehicle(v, accountId) {
+  return {
+    id:          v.id,
+    account_id:  accountId,
+    model:       v.model       || null,
+    year:        v.year        || null,
+    mileage:     v.mileage     || null,
+    brand:       v.brand       || null,
+    fueltype:    v.fueltype    || null,
+    annual:      v.annual      || null,
+    maint:       v.maint       || null,
+    value:       v.value       || null,
+    fuelcost:    v.fuelcost    || null,
+    repairs:     v.repairs     || null,
+    downtime:    v.downtime    || null,
+    condition:   v.condition   || null,
+    dept:        v.dept        || null,
+    expected:    v.expected    || null,
+    // Extended — present only if columns exist (migration required)
+    insurance:   v.insurance   || null,
+    insurer:     v.insurer     || null,
+    ins_renewal: v.insRenewal  || null,
+    battery_kwh: v.batteryKwh || null,
+    battery_health: v.batteryHealth || null,
+    charge_type: v.chargeType  || null,
+  };
+}
 
+// Remap Supabase snake_case back to app camelCase
+function fromSupabaseVehicle(r) {
+  return { ...r,
+    insRenewal:    r.ins_renewal,
+    batteryKwh:    r.battery_kwh,
+    batteryHealth: r.battery_health,
+    chargeType:    r.charge_type,
+  };
+}
+
+// ─── Write queue: vehicles saved locally while Supabase was unavailable ───────
+const WQ_KEY = () => 'fy_wq_vehicles_' + (session?.accountId || '');
+
+function enqueueVehicle(v) {
+  const q = getStore(WQ_KEY()) || [];
+  if (!q.find(x => x.id === v.id)) q.push(v);
+  setStore(WQ_KEY(), q);
+}
+
+function dequeueVehicle(id) {
+  const q = (getStore(WQ_KEY()) || []).filter(x => x.id !== id);
+  setStore(WQ_KEY(), q);
+}
+
+// Sync any queued vehicles to Supabase (called at login + on fleet nav)
+async function syncPendingVehicles() {
+  if (!isSupabaseReady() || !session?.accountId) return;
+  const q = getStore(WQ_KEY()) || [];
+  if (!q.length) return;
+  console.log('[SYNC] Syncing', q.length, 'queued vehicles to Supabase');
+  for (const v of q) {
+    try {
+      const row = toSupabaseVehicle(v, session.accountId);
+      // Use upsert so re-trying a queued insert is idempotent
+      const { error } = await sb.from('vehicles').upsert(row, { onConflict: 'id' });
+      if (error && (error.code === '42703' || error.message?.includes('column'))) {
+        // Extended columns missing — retry with core only
+        const { id, account_id, model, year, mileage, brand, fueltype,
+                annual, maint, value, fuelcost, repairs, downtime,
+                condition, dept, expected } = row;
+        const { error: e2 } = await sb.from('vehicles')
+          .upsert({ id, account_id, model, year, mileage, brand, fueltype,
+                    annual, maint, value, fuelcost, repairs, downtime,
+                    condition, dept, expected }, { onConflict: 'id' });
+        if (e2) throw e2;
+      } else if (error) {
+        throw error;
+      }
+      dequeueVehicle(v.id);
+      console.log('[SYNC] ✅ Synced vehicle:', v.model);
+    } catch(e) {
+      console.warn('[SYNC] Failed for', v.model, '—', e.message);
+      // Leave in queue to retry next time
+    }
+  }
+  _fleetCache = null; // refresh after sync
+  const remaining = (getStore(WQ_KEY()) || []).length;
+  if (remaining === 0 && q.length > 0) {
+    toast(`✅ ${q.length} vehicle(s) synced to Supabase.`);
+  }
+}
+
+// ─── addVehicleToStore ─────────────────────────────────────────────────────────
 async function addVehicleToStore(v) {
   _fleetCache = null;
-  // Always save full object to localStorage first (never lost even if Supabase fails)
-  const localFleet = getStore('fy_fleet_'+session?.accountId) || [];
-  localFleet.unshift(v);
-  setStore('fy_fleet_'+session?.accountId, localFleet);
 
   if (isSupabaseReady() && session?.accountId) {
+    const row = toSupabaseVehicle(v, session.accountId);
     try {
-      // Map camelCase fields to snake_case for Supabase
-      const row = {
-        id: v.id, account_id: session.accountId,
-        model: v.model, year: v.year, mileage: v.mileage,
-        brand: v.brand, fueltype: v.fueltype, annual: v.annual,
-        maint: v.maint, value: v.value, fuelcost: v.fuelcost,
-        repairs: v.repairs, downtime: v.downtime, condition: v.condition,
-        dept: v.dept, expected: v.expected,
-        // Extended fields — gracefully ignored if columns don't exist yet
-        ...(v.insurance  !== undefined && { insurance: v.insurance }),
-        ...(v.insurer    !== undefined && { insurer: v.insurer }),
-        ...(v.insRenewal !== undefined && { ins_renewal: v.insRenewal }),
-        ...(v.batteryKwh !== undefined && { battery_kwh: v.batteryKwh }),
-        ...(v.batteryHealth !== undefined && { battery_health: v.batteryHealth }),
-        ...(v.chargeType !== undefined && { charge_type: v.chargeType }),
-      };
-      const { data, error } = await sb.from('vehicles').insert(row).select().single();
+      const { error } = await sb.from('vehicles').insert(row);
       if (error) {
-        // If it's a missing column error, retry with only core fields
         if (error.code === '42703' || error.message?.includes('column')) {
-          console.warn('Extended columns missing from Supabase schema — saving core fields only');
-          const coreRow = { id:v.id, account_id:session.accountId, model:v.model, year:v.year,
-            mileage:v.mileage, brand:v.brand, fueltype:v.fueltype, annual:v.annual,
-            maint:v.maint, value:v.value, fuelcost:v.fuelcost, repairs:v.repairs,
-            downtime:v.downtime, condition:v.condition, dept:v.dept, expected:v.expected };
-          const { error: e2 } = await sb.from('vehicles').insert(coreRow);
+          // Extended columns not yet migrated — insert core fields only
+          const { id, account_id, model, year, mileage, brand, fueltype,
+                  annual, maint, value, fuelcost, repairs, downtime,
+                  condition, dept, expected } = row;
+          const { error: e2 } = await sb.from('vehicles')
+            .insert({ id, account_id, model, year, mileage, brand, fueltype,
+                      annual, maint, value, fuelcost, repairs, downtime,
+                      condition, dept, expected });
           if (e2) throw e2;
-          toast('✅ Vehicle saved (extended fields in local storage only — run DB migration to sync).');
+          console.warn('[ADD] Extended columns missing — run migration SQL.');
         } else {
           throw error;
         }
       }
+      // ✅ Supabase insert succeeded
+      dequeueVehicle(v.id);
+      // Update localStorage mirror so offline reads stay consistent
+      const lf = getStore('fy_fleet_'+session.accountId) || [];
+      if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+session.accountId, lf); }
+      return v;
     } catch(e) {
-      console.warn('Supabase insert failed — vehicle saved locally:', e.message);
-      // Already in localStorage from the write above — user doesn't lose data
-      toast('Vehicle saved locally (Supabase sync failed — check console).');
+      console.error('[ADD] Supabase insert failed:', e.message);
+      // Queue for later sync + save to localStorage so data is never lost
+      enqueueVehicle(v);
+      const lf = getStore('fy_fleet_'+session.accountId) || [];
+      if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+session.accountId, lf); }
+      toast('⚠️ Saved locally — will sync to Supabase when connection restores.');
+      return v;
     }
+  } else {
+    // No Supabase — queue and save locally
+    enqueueVehicle(v);
+    const lf = getStore('fy_fleet_'+(session?.accountId||'')) || [];
+    if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+(session?.accountId||''), lf); }
+    return v;
   }
-  return v;
 }
 
 async function deleteVehicleFromStore(id) {
@@ -2223,7 +2318,7 @@ function nav(sec, opts) {
   const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',import:'Import Data',livedata:'Live Data & AI',team:'Team & Plan',reports:'Export Reports',settings:'Settings',invoice:'Scan Invoice',repairs:'Repairs & Alerts',evinsurance:'EV & Insurance'};
   document.getElementById('page-title').textContent = titles[sec]||sec;
   activeSection = sec;
-  if(sec==='fleet') renderTable();
+  if(sec==='fleet') { syncPendingVehicles().then(() => renderTable()); }
   if(sec==='recs') renderRecs('full-recs', null);
   if(sec==='dashboard') renderUnifiedDashboard();
   if(sec==='team') renderTeam();
@@ -2393,7 +2488,7 @@ async function addVehicle() {
     chargeType:document.getElementById('f-charge-type').value,
   };
   await addVehicleToStore(newV);
-  _fleetCache = null; // force fresh load so new vehicle shows immediately
+  _fleetCache = null; // cleared in addVehicleToStore but belt-and-braces
   clearForm();
   toast(`✅ ${model} added.`);
   nav('fleet');
@@ -2795,6 +2890,8 @@ function launchApp(){
   renderPlanUI();
   if (startSec !== 'dashboard') renderUnifiedDashboard(); // always render dashboard data
   fetchLiveData();
+  // Sync any vehicles that were saved locally while Supabase was unavailable
+  syncPendingVehicles();
 }
 
 
