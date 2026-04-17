@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -665,7 +666,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div class="section-rule">Cost Data ★</div>
               <div class="form-group"><label class="form-label">Annual Maintenance ($)</label><input class="form-input" id="f-maint" type="number" placeholder="e.g. 2500"/></div>
               <div class="form-group"><label class="form-label">Vehicle Value ($) ★</label><input class="form-input" id="f-value" type="number" placeholder="e.g. 15000"/></div>
-              <div class="form-group"><label class="form-label">Annual Fuel Cost ($) ★</label><input class="form-input" id="f-fuelcost" type="number" placeholder="e.g. 3000"/></div>
+              <div class="form-group" id="fuelcost-group"><label class="form-label" id="fuelcost-label">Annual Fuel Cost ★</label><input class="form-input" id="f-fuelcost" type="number" placeholder="e.g. 3000"/></div>
               <div class="section-rule">Reliability ★</div>
               <div class="form-group"><label class="form-label">Repairs (last 12mo)</label><input class="form-input" id="f-repairs" type="number" placeholder="e.g. 3"/></div>
               <div class="form-group"><label class="form-label">Downtime Days ★</label><input class="form-input" id="f-downtime" type="number" placeholder="e.g. 8"/></div>
@@ -858,23 +859,35 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       </div>
 
 
-      <!-- CSV IMPORT -->
+      <!-- CSV / EXCEL IMPORT -->
       <div id="sec-import" style="display:none">
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Import Fleet from CSV</div>
-            <a href="#" onclick="downloadTemplate();return false" class="btn btn-ghost btn-sm">⬇ Download Template</a>
+            <div class="card-title">Import Fleet Data</div>
+            <a href="#" onclick="downloadTemplate();return false" class="btn btn-ghost btn-sm">CSV Template</a>
           </div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
-            <div class="info-box">
-              Upload a CSV file with your fleet data. Download the template above to see the exact column format expected. Existing vehicles with the same model+year are skipped to avoid duplicates.
+            <div style="display:flex;gap:8px">
+              <button id="import-tab-csv"  class="btn btn-primary btn-sm" onclick="switchImportTab('csv')">CSV</button>
+              <button id="import-tab-xlsx" class="btn btn-ghost  btn-sm" onclick="switchImportTab('xlsx')">Excel (.xlsx)</button>
             </div>
-            <div class="csv-drop" id="csv-drop-zone">
-              <input type="file" accept=".csv,.txt" onchange="handleCSVFile(this.files[0])"/>
-              <div class="csv-drop-icon">📂</div>
-              <div class="csv-drop-text"><strong>Drop your CSV here</strong> or click to browse<br><span style="font-size:12px">Supports .csv files · Max 500 rows</span></div>
+            <div class="info-box" id="import-info-csv">Upload a CSV file with your fleet data. Download the template above for the exact column format. Existing vehicles with same model+year are skipped.</div>
+            <div class="info-box" id="import-info-xlsx" style="display:none">Upload an Excel workbook. The first sheet is used. Same column headers as the CSV template. New columns supported: annual_insurance, insurer, battery_kwh, battery_health.</div>
+            <div id="import-csv-panel">
+              <div class="csv-drop" id="csv-drop-zone">
+                <input type="file" accept=".csv,.txt" onchange="handleCSVFile(this.files[0])"/>
+                <div class="csv-drop-icon">📄</div>
+                <div class="csv-drop-text"><strong>Drop CSV here</strong> or click to browse<br><span style="font-size:12px">.csv files · Max 500 rows</span></div>
+              </div>
             </div>
-            <div class="csv-preview" id="csv-preview">
+            <div id="import-xlsx-panel" style="display:none">
+              <div class="csv-drop" id="xlsx-drop-zone" style="border-color:#2e7d52">
+                <input type="file" id="xlsx-file-input" accept=".xlsx,.xls" onchange="handleXLSXFile(this.files[0])"/>
+                <div class="csv-drop-icon">📊</div>
+                <div class="csv-drop-text"><strong>Drop Excel file here</strong> or click to browse<br><span style="font-size:12px">.xlsx or .xls · First sheet · Max 500 rows</span></div>
+              </div>
+            </div>
+            <div class="csv-preview" id="csv-preview" style="display:none">
               <div class="csv-preview-title" id="csv-preview-title">Preview</div>
               <div style="overflow-x:auto"><table id="csv-preview-table"><thead></thead><tbody></tbody></table></div>
               <div class="csv-actions">
@@ -884,9 +897,11 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               </div>
             </div>
             <div style="border-top:1px solid var(--border);padding-top:16px">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">Expected CSV Columns</div>
-              <div style="font-size:12px;color:var(--stone);line-height:1.8;font-family:monospace;background:var(--mist);padding:12px;border-radius:8px;overflow-x:auto">
-                model, brand, year, mileage, fueltype, annual_km, maintenance_cost, vehicle_value, fuel_cost, repair_count, downtime_days, condition, department, expected_km
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">Column headers (CSV / Excel)</div>
+              <div style="font-size:12px;color:var(--stone);line-height:2;font-family:monospace;background:var(--mist);padding:12px;border-radius:8px">
+                model* &nbsp; brand &nbsp; year* &nbsp; mileage* &nbsp; fueltype &nbsp; annual_km &nbsp; maintenance_cost &nbsp; vehicle_value &nbsp; fuel_cost<br>
+                repair_count &nbsp; downtime_days &nbsp; condition &nbsp; department &nbsp; expected_km<br>
+                annual_insurance &nbsp; insurer &nbsp; battery_kwh &nbsp; battery_health &nbsp;&nbsp; (* = required)
               </div>
             </div>
           </div>
@@ -1212,6 +1227,9 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🏆 How to reduce your fleet premium</div>
+              <div style="font-size:11px;background:var(--mist);border-radius:7px;padding:8px 12px;margin-bottom:12px;color:var(--stone);line-height:1.6">
+                📚 <strong>Data sources:</strong> ABI (Association of British Insurers) Fleet Insurance Report 2024 · Zurich FleetSmart Commercial Vehicle Survey 2024 · BVRLA Fleet Industry Guide 2024 · ICCT Fleet Electrification Report 2024 · LexisNexis Risk Solutions EV Insurance Index 2024 · Allianz Commercial Fleet Trends 2024
+              </div>
               <div style="font-size:13px;color:var(--stone);line-height:1.75">
                 <b>1. Fleet multi-vehicle policy</b> — 5+ vehicles on a single policy typically saves 15–30% vs individual policies. Insurers include Zurich FleetSmart, AXA Fleet, Aviva Fleet.<br><br>
                 <b>2. Telematics / black box</b> — fitting tracking devices can reduce premiums 10–25%. Insurers use driving behaviour data. Most major fleet insurers offer this.<br><br>
@@ -2022,14 +2040,18 @@ function score(v) {
   // ── Factor 3: Cost Per km (CPM) (max 20 pts) ─────────────────────
   // For EVs: fuelcost = electricity cost. BEV avg CPM ~$0.08–$0.12/km vs ICE $0.15–$0.25.
   // EVs are benchmarked against a lower threshold ($0.12 baseline instead of $0.17).
-  const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0, fuelcost=parseInt(v.fuelcost)||0;
+  // BEV fuel cost = 0 (no petrol) — electricity cost is tracked separately if entered under fuelcost
+  const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0;
+  // BEV: fuelcost field is hidden/empty — treat as 0 for fuel but electricity may be in fuelcost
+  const fuelcost = isBEV ? 0 : (parseInt(v.fuelcost)||0);
+  const electricity = isBEV ? (parseInt(v.fuelcost)||0) : 0; // BEV stores elec cost in fuelcost field if user entered it before type change
   const insurance=parseInt(v.insurance)||0;
   // Include insurance in CPM if provided (true total operating cost)
   const totalOpCost = maint + fuelcost + insurance;
   let cpmPts=0,cpmVal='—';
   if(annual>0 && totalOpCost>0){
     const cpm = totalOpCost/annual;
-    cpmVal = '$'+cpm.toFixed(2)+'/km'+(insurance>0?' (incl. ins.)':'');
+    cpmVal = getAccountCurrency().symbol+cpm.toFixed(2)+'/km'+(insurance>0?' (incl. ins.)':'');
     const cpmBaseline = isBEV ? 0.12 : 0.17; // EV lower baseline
     const cpmHigh     = isBEV ? 0.22 : 0.40;
     if(cpm<=cpmBaseline) cpmPts=0;
@@ -2110,7 +2132,7 @@ function score(v) {
     else if(insRatio<=0.15) insPts=Math.round(2+(insRatio-0.10)/0.05*3);
     else insPts=5;
   } else if(insurance>0) {
-    insVal = '$'+insurance.toLocaleString()+'/yr';
+    insVal = formatMoney(insurance)+'/yr';
     insPts=0; // can't score ratio without value
   }
   bd.push({label:'Insurance Cost Ratio',val:insVal,pts:insPts,max:5,isnew:true,isins:true});
@@ -2202,7 +2224,7 @@ window.addEventListener('beforeunload', function(e) {
 
 // ═══════════ RENDER ═══════════
 async function renderDashboard() {
-  const fleet = getFleet();
+  const fleet = await getFleet();
   const scored = fleet.map(v => ({v,...score(v)}));
   const critical = scored.filter(x=>x.score>=65).length;
   const watch = scored.filter(x=>x.score>=40&&x.score<65).length;
@@ -2303,7 +2325,7 @@ async function addVehicle() {
   const mileage=document.getElementById('f-mileage').value;
   if(!model||!year||!mileage){toast('Please fill in Make/Model, Year, and Mileage.');return;}
   const plan=session?.plan||'trial';
-  const fleet=getFleet();
+  const fleet=await getFleet();
   if(fleet.length>=PLAN_LIMITS[plan].vehicles){toast(`Plan limit: max ${PLAN_LIMITS[plan].vehicles} vehicles. Upgrade to add more.`);return;}
   const newV = {id:Date.now(),model,year,mileage,
     brand:document.getElementById('f-brand').value,
@@ -2335,14 +2357,39 @@ function clearForm(){
 // Show/hide EV-specific fields based on fuel type selection
 function toggleEVFields(){
   const ft = document.getElementById('f-fueltype')?.value||'';
-  const isBEV = ft==='bev'||ft==='phev';
-  document.querySelectorAll('.ev-only').forEach(el=>el.style.display=isBEV?'':'none');
+  const isBEV = ft==='bev';
+  const isEV  = isBEV || ft==='phev';
+
+  // Show/hide EV-specific fields
+  document.querySelectorAll('.ev-only').forEach(el=>el.style.display=isEV?'':'none');
   const rule = document.getElementById('ev-fields-rule');
-  if(rule) rule.style.display=isBEV?'':'none';
+  if(rule) rule.style.display=isEV?'':'none';
   const evTip = document.getElementById('ev-range-info');
-  if(evTip) evTip.style.display=isBEV?'block':'none';
+  if(evTip) evTip.style.display=isEV?'block':'none';
+
+  // BEV: hide fuel cost entirely, clear value
+  const fuelGrp = document.getElementById('fuelcost-group');
+  const fuelLbl = document.getElementById('fuelcost-label');
+  const fuelInp = document.getElementById('f-fuelcost');
+  if(fuelGrp) {
+    if(isBEV) {
+      fuelGrp.style.display='none';
+      if(fuelInp) fuelInp.value='';  // BEV has no fuel cost
+    } else {
+      fuelGrp.style.display='';
+      if(fuelLbl) fuelLbl.textContent = ft==='phev'
+        ? 'Annual Fuel Cost (hybrid) ★'
+        : 'Annual Fuel Cost ★';
+    }
+  }
+
+  const sym = getAccountCurrency().symbol;
+  const fuelPlaceholder = ft==='phev'?`e.g. ${sym}1200 (petrol portion)`:
+                          isBEV?'':`e.g. ${sym}3000`;
+  if(fuelInp && !isBEV) fuelInp.placeholder=fuelPlaceholder;
+
   const insTip = document.getElementById('ins-tip');
-  if(insTip) insTip.style.display=document.getElementById('f-insurance')?.value>0?'block':'none';
+  if(insTip) insTip.style.display=parseInt(document.getElementById('f-insurance')?.value||0)>0?'block':'none';
 }
 async function delVehicle(id){if(gate('','deleteVehicle'))return;const fleet=await getFleet();const v=fleet.find(x=>x.id===id);if(!v)return;deleteId=id;document.getElementById('del-name').textContent=v.model;openModal('modal-delete');}
 async function confirmDelete(){await deleteVehicleFromStore(deleteId);closeModal('modal-delete');toast('Vehicle removed.');await renderTable();}
@@ -2749,7 +2796,8 @@ function parseCSV(text) {
   document.getElementById('csv-preview-title').textContent = `Preview — ${csvParsed.length} vehicles found${errors.length ? ' (' + errors.length + ' skipped)' : ''}`;
 
   thead.innerHTML = '<tr>' + ['Model','Brand','Year','Mileage','Maint $','Downtime'].map(h => `<th>${h}</th>`).join('') + '</tr>';
-  tbody.innerHTML = csvParsed.slice(0,8).map(r => `<tr><td>${r.model}</td><td>${r.brand||'—'}</td><td>${r.year}</td><td>${r.mileage?parseInt(r.mileage).toLocaleString()+' km':'—'}</td><td>${r.maint?'$'+parseInt(r.maint).toLocaleString():'—'}</td><td>${r.downtime||'—'} days</td></tr>`).join('');
+  const _csvSym = getAccountCurrency().symbol;
+  tbody.innerHTML = csvParsed.slice(0,8).map(r => `<tr><td>${r.model}</td><td>${r.brand||'—'}</td><td>${r.year}</td><td>${r.mileage?parseInt(r.mileage).toLocaleString()+' km':'—'}</td><td>${r.maint?_csvSym+parseInt(r.maint).toLocaleString():'—'}</td><td>${r.downtime||'—'} days</td></tr>`).join('');
   if (csvParsed.length > 8) tbody.innerHTML += `<tr><td colspan="6" style="text-align:center;color:var(--stone);font-style:italic">... and ${csvParsed.length-8} more</td></tr>`;
   document.getElementById('csv-status').textContent = '';
 }
@@ -2787,6 +2835,12 @@ if (dropZone) {
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
   dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); const f = e.dataTransfer.files[0]; if(f) handleCSVFile(f); });
+}
+const xlsxDropZone = document.getElementById('xlsx-drop-zone');
+if (xlsxDropZone) {
+  xlsxDropZone.addEventListener('dragover', e => { e.preventDefault(); xlsxDropZone.classList.add('over'); });
+  xlsxDropZone.addEventListener('dragleave', () => xlsxDropZone.classList.remove('over'));
+  xlsxDropZone.addEventListener('drop', e => { e.preventDefault(); xlsxDropZone.classList.remove('over'); const f = e.dataTransfer.files[0]; if(f) handleXLSXFile(f); });
 }
 
 // ═══════════ LIVE DATA ═══════════
@@ -2836,9 +2890,9 @@ function renderLiveData(fresh) {
     'ld-diesel': { val: '$' + liveData.dieselPrice.toFixed(2), sub: 'per litre · global avg' },
     'ld-petrol': { val: '$' + liveData.petrolPrice.toFixed(2), sub: 'per litre · global avg' },
     'ld-usedcar': { val: liveData.usedCarIndex, sub: 'YoY used car trend' },
-    'ld-cpm': { val: '$' + liveData.fleetAvgCPM.toFixed(2), sub: 'industry benchmark /km' },
-    'ld-repair': { val: '$' + liveData.avgRepairCost.toLocaleString(), sub: 'per incident avg' },
-    'ld-downtime': { val: '$' + liveData.downtimeCost.toLocaleString(), sub: 'per day lost productivity' },
+    'ld-cpm': { val: getAccountCurrency().symbol + liveData.fleetAvgCPM.toFixed(2), sub: 'industry benchmark /km' },
+    'ld-repair': { val: formatMoney(liveData.avgRepairCost), sub: 'per incident avg' },
+    'ld-downtime': { val: formatMoney(liveData.downtimeCost), sub: 'per day lost productivity' },
   };
 
   Object.entries(updates).forEach(([id, d]) => {
@@ -3694,11 +3748,11 @@ async function renderAlerts(repairs) {
     if (daysLeft < 0) {
       alerts.push({ type:'red', icon:'🔧',
         title:`${sr.vehicleModel} — Scheduled ${sr.category} overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft)!==1?'s':''}`,
-        desc:`Scheduled repair is overdue. ${sr.notes ? 'Notes: '+sr.notes : ''} ${sr.estimatedCost?'Est. cost: $'+sr.estimatedCost:''}`.trim() });
+        desc:`Scheduled repair is overdue. ${sr.notes ? 'Notes: '+sr.notes : ''} ${sr.estimatedCost?'Est. cost: '+formatMoney(sr.estimatedCost):''}`.trim() });
     } else if (daysLeft <= T.serviceDays) {
       alerts.push({ type:'yellow', icon:'🔧',
         title:`${sr.vehicleModel} — ${sr.category} repair due in ${daysLeft} day${daysLeft!==1?'s':''}`,
-        desc:`Upcoming scheduled repair within your ${T.serviceDays}-day warning window. ${sr.notes||''} ${sr.estimatedCost?'Est. $'+sr.estimatedCost:''}`.trim() });
+        desc:`Upcoming scheduled repair within your ${T.serviceDays}-day warning window. ${sr.notes||''} ${sr.estimatedCost?'Est. '+formatMoney(sr.estimatedCost):''}`.trim() });
     }
   });
 
@@ -3772,7 +3826,7 @@ function renderCostByVehicle(repairs) {
     <div class="cost-bar-row">
       <div class="cost-bar-label">${model}</div>
       <div class="cost-bar-bg"><div class="cost-bar-fill" style="width:${Math.round(cost/max*100)}%"></div></div>
-      <div class="cost-bar-val">$${Math.round(cost).toLocaleString()}</div>
+      <div class="cost-bar-val">${formatMoney(Math.round(cost))}</div>
     </div>`).join('');
 }
 
@@ -3795,10 +3849,10 @@ async function renderRepairHistory(repairs) {
   const catClass = {Engine:'cat-engine',Brakes:'cat-brakes',Tyres:'cat-tyres',Electrical:'cat-electrical',Bodywork:'cat-bodywork',Service:'cat-service',Other:'cat-other'};
   tbody.innerHTML = filtered.map(r => `<tr>
     <td><strong>${r.vehicleModel}</strong></td>
-    <td class="td-muted">${r.date}</td>
+    <td class="td-muted">${fmtDate(r.date)}</td>
     <td><span class="repair-cat ${catClass[r.category]||'cat-other'}">${r.category}</span></td>
     <td style="font-size:13px;color:var(--stone);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.items||'—'}</td>
-    <td><strong>$${parseFloat(r.cost||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td>
+    <td><strong>${formatMoney(parseFloat(r.cost||0))}</strong></td>
     <td><button onclick="deleteRepair(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:14px;padding:4px 6px">✕</button></td>
   </tr>`).join('');
 }
@@ -4272,6 +4326,103 @@ function applyScanEdits() {
 }
 
 
+
+// ═══════════ EXCEL (XLSX) IMPORT ═══════════
+function switchImportTab(tab) {
+  const csvBtn  = document.getElementById('import-tab-csv');
+  const xlsxBtn = document.getElementById('import-tab-xlsx');
+  const csvPanel  = document.getElementById('import-csv-panel');
+  const xlsxPanel = document.getElementById('import-xlsx-panel');
+  const csvInfo   = document.getElementById('import-info-csv');
+  const xlsxInfo  = document.getElementById('import-info-xlsx');
+  if(!csvBtn||!xlsxBtn) return;
+  clearCSV(); // reset preview when switching
+  if(tab==='csv'){
+    csvBtn.className='btn btn-primary btn-sm'; xlsxBtn.className='btn btn-ghost btn-sm';
+    if(csvPanel) csvPanel.style.display=''; if(xlsxPanel) xlsxPanel.style.display='none';
+    if(csvInfo)  csvInfo.style.display='';  if(xlsxInfo)  xlsxInfo.style.display='none';
+  } else {
+    xlsxBtn.className='btn btn-primary btn-sm'; csvBtn.className='btn btn-ghost btn-sm';
+    if(xlsxPanel) xlsxPanel.style.display=''; if(csvPanel) csvPanel.style.display='none';
+    if(xlsxInfo)  xlsxInfo.style.display='';  if(csvInfo)  csvInfo.style.display='none';
+  }
+}
+
+function handleXLSXFile(file) {
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { toast('Excel library not loaded — please refresh and try again.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]]; // first sheet
+      const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!raw.length) { toast('Excel sheet appears empty.'); return; }
+
+      // Normalise column headers (same as CSV import)
+      const normalise = h => String(h||'').trim().toLowerCase()
+        .replace(/[^a-z0-9_]/g,'_')
+        .replace(/annual_km/,'annual').replace(/maintenance_cost/,'maint')
+        .replace(/maint\.?\s*cost/,'maint').replace(/vehicle_value/,'value')
+        .replace(/fuel_cost/,'fuelcost').replace(/repair_count/,'repairs')
+        .replace(/downtime_days/,'downtime').replace(/expected_km/,'expected')
+        .replace(/department/,'dept').replace(/fuel_type/,'fueltype')
+        .replace(/insurance_cost/,'insurance').replace(/annual_insurance/,'insurance')
+        .replace(/battery_kwh/,'batteryKwh').replace(/battery_capacity/,'batteryKwh')
+        .replace(/battery_health/,'batteryHealth')
+        .replace(/charge_type/,'chargeType');
+
+      csvParsed = [];
+      const errors = [];
+      raw.slice(0, 500).forEach((row, i) => {
+        const norm = {};
+        Object.entries(row).forEach(([k,v]) => { norm[normalise(k)] = v; });
+        if (!norm.model || !norm.year) { errors.push(`Row ${i+2}: missing model or year`); return; }
+        norm.id = Date.now() + i;
+        csvParsed.push(norm);
+      });
+
+      if (!csvParsed.length) { toast('No valid rows found. Check your column headers.'); return; }
+
+      // Re-use the CSV preview renderer
+      const preview = document.getElementById('csv-preview');
+      const thead = document.querySelector('#csv-preview-table thead');
+      const tbody = document.querySelector('#csv-preview-table tbody');
+      preview.style.display = 'block';
+      const sym = getAccountCurrency().symbol;
+      document.getElementById('csv-preview-title').textContent =
+        `Preview — ${csvParsed.length} vehicles found${errors.length?' ('+errors.length+' skipped)':''}`;
+
+      thead.innerHTML = '<tr><th>Model</th><th>Brand</th><th>Year</th><th>Mileage</th><th>Maint</th><th>Downtime</th></tr>';
+      tbody.innerHTML = csvParsed.slice(0,8).map(r =>
+        `<tr><td>${r.model}</td><td>${r.brand||'—'}</td><td>${r.year}</td>
+         <td>${r.mileage?parseInt(r.mileage).toLocaleString()+' km':'—'}</td>
+         <td>${r.maint?sym+parseInt(r.maint).toLocaleString():'—'}</td>
+         <td>${r.downtime||'—'} days</td></tr>`
+      ).join('');
+      if (csvParsed.length > 8)
+        tbody.innerHTML += `<tr><td colspan="6" style="text-align:center;color:var(--stone);font-style:italic">... and ${csvParsed.length-8} more</td></tr>`;
+      document.getElementById('csv-status').textContent = '';
+      document.getElementById('csv-import-btn').disabled = false;
+      toast(`✅ Read ${csvParsed.length} vehicles from Excel`);
+    } catch(err) {
+      toast('Excel parse error: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Drag & drop for Excel
+const xlsxDrop = document.getElementById('xlsx-drop-zone');
+if (xlsxDrop) {
+  xlsxDrop.addEventListener('dragover', e => { e.preventDefault(); xlsxDrop.classList.add('over'); });
+  xlsxDrop.addEventListener('dragleave', () => xlsxDrop.classList.remove('over'));
+  xlsxDrop.addEventListener('drop', e => {
+    e.preventDefault(); xlsxDrop.classList.remove('over');
+    const f = e.dataTransfer.files[0]; if(f) handleXLSXFile(f);
+  });
+}
+
 // ═══════════ EV & INSURANCE DASHBOARD ═══════════
 async function renderEVInsurance() {
   const fleet = await getFleet();
@@ -4333,7 +4484,7 @@ async function renderEVInsurance() {
         const val = parseInt(v.value)||0;
         const ratio = val>0 ? Math.round(ins/val*100) : null;
         const isBEV2 = v.fueltype==='bev';
-        const renewStr = v.insRenewal ? `· Renewal: ${v.insRenewal}` : '';
+        const renewStr = v.insRenewal ? `· Renewal: ${fmtDate(v.insRenewal)}` : '';
         const insurer = v.insurer||'Unknown insurer';
         const flagHigh = ratio!==null && ratio>10;
         return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
@@ -4347,6 +4498,23 @@ async function renderEVInsurance() {
       }).join('');
     }
   }
+}
+
+
+// ─── Date formatting ───────────────────────────────────────────────
+// Storage always uses ISO (YYYY-MM-DD). Display uses EU format (DD/MM/YYYY).
+function fmtDate(isoStr) {
+  if (!isoStr) return '—';
+  const [y,m,d] = isoStr.split('-');
+  if (!y||!m||!d) return isoStr;
+  return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+}
+function fmtDateShort(isoStr) {
+  if (!isoStr) return '—';
+  const [y,m,d] = isoStr.split('-');
+  if (!y||!m||!d) return isoStr;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
 }
 
 // ═══════════ INIT ═══════════
