@@ -481,7 +481,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <button class="nav-item active" onclick="nav('dashboard')"><span class="nav-icon">◈</span> Dashboard</button>
       <button class="nav-item" onclick="nav('fleet')"><span class="nav-icon">⊟</span> Fleet Overview</button>
       <button class="nav-item" onclick="nav('add')"><span class="nav-icon">＋</span> Add Vehicle</button>
-      <button class="nav-item" onclick="nav('import')"><span class="nav-icon">📥</span> Import CSV</button>
+      <button class="nav-item" onclick="nav('import')"><span class="nav-icon">📥</span> Import Data</button>
       <button class="nav-item" onclick="nav('livedata')"><span class="nav-icon">🌐</span> Live Data</button>
       <button class="nav-item" onclick="nav('recs')"><span class="nav-icon">◎</span> Recommendations</button>
       <button class="nav-item" onclick="nav('invoice')"><span class="nav-icon">📸</span> Scan Invoice</button>
@@ -862,18 +862,21 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <button id="import-tab-csv"  class="btn btn-primary btn-sm" onclick="switchImportTab('csv')">CSV</button>
               <button id="import-tab-xlsx" class="btn btn-ghost  btn-sm" onclick="switchImportTab('xlsx')">Excel (.xlsx)</button>
             </div>
+            <div id="import-plan-notice" style="display:none;background:#f7f0d8;border:1px solid #e8d080;border-radius:9px;padding:12px 16px;font-size:13px;color:#7a5c00;margin-bottom:4px">
+              🔒 <strong>Starter plan or higher</strong> required to import vehicles. <a href="#" onclick="showUpgradeWall('csvImport');return false" style="color:#c8603a;font-weight:700">Upgrade →</a> &nbsp;You can still download the template to prepare your data.
+            </div>
             <div class="info-box" id="import-info-csv">Upload a CSV file with your fleet data. Download the template above for the exact column format. Existing vehicles with same model+year are skipped.</div>
             <div class="info-box" id="import-info-xlsx" style="display:none">Upload an Excel workbook. The first sheet is used. Same column headers as the CSV template. New columns supported: annual_insurance, insurer, battery_kwh, battery_health.</div>
             <div id="import-csv-panel">
-              <div class="csv-drop" id="csv-drop-zone">
-                <input type="file" accept=".csv,.txt" onchange="handleCSVFile(this.files[0])"/>
+              <div class="csv-drop" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
+                <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none" onchange="handleCSVFile(this.files[0])"/>
                 <div class="csv-drop-icon">📄</div>
                 <div class="csv-drop-text"><strong>Drop CSV here</strong> or click to browse<br><span style="font-size:12px">.csv files · Max 500 rows</span></div>
               </div>
             </div>
             <div id="import-xlsx-panel" style="display:none">
-              <div class="csv-drop" id="xlsx-drop-zone" style="border-color:#2e7d52">
-                <input type="file" id="xlsx-file-input" accept=".xlsx,.xls" onchange="handleXLSXFile(this.files[0])"/>
+              <div class="csv-drop" id="xlsx-drop-zone" style="border-color:#2e7d52" onclick="document.getElementById('xlsx-file-input').click()">
+                <input type="file" id="xlsx-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleXLSXFile(this.files[0])"/>
                 <div class="csv-drop-icon">📊</div>
                 <div class="csv-drop-text"><strong>Drop Excel file here</strong> or click to browse<br><span style="font-size:12px">.xlsx or .xls · First sheet · Max 500 rows</span></div>
               </div>
@@ -1676,18 +1679,59 @@ async function saveFleet(f) {
   setStore('fy_fleet_'+session.accountId, f);
 }
 
+// Known Supabase vehicles table columns — add new columns here after running migrations
+const SB_VEHICLE_COLS = ['id','model','year','mileage','brand','fueltype','annual','maint',
+  'value','fuelcost','repairs','downtime','condition','dept','expected',
+  // Extended columns — add to Supabase schema with the migration SQL below
+  'insurance','insurer','ins_renewal','battery_kwh','battery_health','charge_type'];
+
 async function addVehicleToStore(v) {
   _fleetCache = null;
+  // Always save full object to localStorage first (never lost even if Supabase fails)
+  const localFleet = getStore('fy_fleet_'+session?.accountId) || [];
+  localFleet.unshift(v);
+  setStore('fy_fleet_'+session?.accountId, localFleet);
+
   if (isSupabaseReady() && session?.accountId) {
     try {
-      const { data, error } = await sb.from('vehicles').insert({...v, account_id: session.accountId}).select().single();
-      if (error) throw error;
-      return data;
-    } catch(e) { console.warn('Supabase insert failed, using localStorage:', e.message); }
+      // Map camelCase fields to snake_case for Supabase
+      const row = {
+        id: v.id, account_id: session.accountId,
+        model: v.model, year: v.year, mileage: v.mileage,
+        brand: v.brand, fueltype: v.fueltype, annual: v.annual,
+        maint: v.maint, value: v.value, fuelcost: v.fuelcost,
+        repairs: v.repairs, downtime: v.downtime, condition: v.condition,
+        dept: v.dept, expected: v.expected,
+        // Extended fields — gracefully ignored if columns don't exist yet
+        ...(v.insurance  !== undefined && { insurance: v.insurance }),
+        ...(v.insurer    !== undefined && { insurer: v.insurer }),
+        ...(v.insRenewal !== undefined && { ins_renewal: v.insRenewal }),
+        ...(v.batteryKwh !== undefined && { battery_kwh: v.batteryKwh }),
+        ...(v.batteryHealth !== undefined && { battery_health: v.batteryHealth }),
+        ...(v.chargeType !== undefined && { charge_type: v.chargeType }),
+      };
+      const { data, error } = await sb.from('vehicles').insert(row).select().single();
+      if (error) {
+        // If it's a missing column error, retry with only core fields
+        if (error.code === '42703' || error.message?.includes('column')) {
+          console.warn('Extended columns missing from Supabase schema — saving core fields only');
+          const coreRow = { id:v.id, account_id:session.accountId, model:v.model, year:v.year,
+            mileage:v.mileage, brand:v.brand, fueltype:v.fueltype, annual:v.annual,
+            maint:v.maint, value:v.value, fuelcost:v.fuelcost, repairs:v.repairs,
+            downtime:v.downtime, condition:v.condition, dept:v.dept, expected:v.expected };
+          const { error: e2 } = await sb.from('vehicles').insert(coreRow);
+          if (e2) throw e2;
+          toast('✅ Vehicle saved (extended fields in local storage only — run DB migration to sync).');
+        } else {
+          throw error;
+        }
+      }
+    } catch(e) {
+      console.warn('Supabase insert failed — vehicle saved locally:', e.message);
+      // Already in localStorage from the write above — user doesn't lose data
+      toast('Vehicle saved locally (Supabase sync failed — check console).');
+    }
   }
-  const fleet = getStore('fy_fleet_'+session?.accountId) || [];
-  fleet.unshift(v);
-  setStore('fy_fleet_'+session?.accountId, fleet);
   return v;
 }
 
@@ -2176,7 +2220,7 @@ function nav(sec, opts) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.getAttribute('onclick')?.includes("'"+sec+"'"));
   });
-  const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',import:'Import CSV',livedata:'Live Data & AI',team:'Team & Plan',reports:'Export Reports',settings:'Settings',invoice:'Scan Invoice',repairs:'Repairs & Alerts',evinsurance:'EV & Insurance'};
+  const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',import:'Import Data',livedata:'Live Data & AI',team:'Team & Plan',reports:'Export Reports',settings:'Settings',invoice:'Scan Invoice',repairs:'Repairs & Alerts',evinsurance:'EV & Insurance'};
   document.getElementById('page-title').textContent = titles[sec]||sec;
   activeSection = sec;
   if(sec==='fleet') renderTable();
@@ -2189,6 +2233,7 @@ function nav(sec, opts) {
   if (topbarPdf) topbarPdf.style.display = sec==='fleet' ? '' : 'none';
   if(sec==='settings') loadSettings();
   if(sec==='repairs') renderRepairsDashboard();
+  if(sec==='import'){const n=document.getElementById('import-plan-notice');if(n)n.style.display=!planHas('csvImport')?'block':'none';}
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
   if(sec==='evinsurance') renderEVInsurance();
@@ -2347,7 +2392,11 @@ async function addVehicle() {
     batteryHealth:document.getElementById('f-battery-health').value,
     chargeType:document.getElementById('f-charge-type').value,
   };
-  await addVehicleToStore(newV);clearForm();toast(`${model} added.`);nav('fleet');
+  await addVehicleToStore(newV);
+  _fleetCache = null; // force fresh load so new vehicle shows immediately
+  clearForm();
+  toast(`✅ ${model} added.`);
+  nav('fleet');
 }
 function clearForm(){
   ['f-model','f-year','f-mileage','f-annual','f-maint','f-value','f-fuelcost','f-repairs','f-downtime','f-dept','f-expected',
@@ -2839,6 +2888,8 @@ if (dropZone) {
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
   dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); const f = e.dataTransfer.files[0]; if(f) handleCSVFile(f); });
+  // Prevent double-click from propagating to file input twice
+  dropZone.addEventListener('click', e => { if(e.target.id!=='csv-file-input') document.getElementById('csv-file-input')?.click(); });
 }
 const xlsxDropZone = document.getElementById('xlsx-drop-zone');
 if (xlsxDropZone) {
@@ -3210,16 +3261,17 @@ async function lookupPlate() {
         vehicleData = data.vehicle;
       }
     } else if (plateText) {
-      // Text-only lookup
-      const resp = await fetch(API_BASE + '/api/scan-plate', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ plate_text: plateText })
-      });
-      // Note: multer expects FormData but we handle text via req.body too
+      // Text-only lookup — must send as FormData because the route uses multer
+      const fd = new FormData();
+      fd.append('plate_text', plateText);
+      const resp = await fetch(API_BASE + '/api/scan-plate', { method:'POST', body: fd });
       if (resp.ok) {
         const data = await resp.json();
         vehicleData = data.vehicle;
+      } else {
+        const errText = await resp.text().catch(()=>'');
+        console.warn('[PLATE] Backend error', resp.status, errText);
+        throw new Error(`Backend returned ${resp.status}. Check Render logs.`);
       }
     }
 
@@ -3238,9 +3290,12 @@ async function lookupPlate() {
     document.getElementById('plate-status').style.color = 'rgba(100,200,150,.9)';
 
   } catch(e) {
-    document.getElementById('plate-status').textContent = '❌ ' + e.message;
+    const msg = e.message?.includes('fetch') || e.message?.includes('Failed')
+      ? 'Backend unreachable — Render may be cold-starting. Wait 30s and retry.'
+      : e.message;
+    document.getElementById('plate-status').textContent = '❌ ' + msg;
     document.getElementById('plate-status').style.color = 'rgba(230,100,100,.9)';
-    toast(e.message);
+    toast(msg);
   } finally {
     btn.disabled = false; btn.textContent = 'Look Up →';
   }
