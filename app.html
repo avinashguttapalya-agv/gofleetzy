@@ -485,6 +485,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <button class="nav-item" onclick="nav('recs')"><span class="nav-icon">◎</span> Recommendations</button>
       <button class="nav-item" onclick="nav('invoice')"><span class="nav-icon">📸</span> Scan Invoice</button>
       <button class="nav-item" onclick="nav('repairs')"><span class="nav-icon">🔧</span> Repairs & Alerts</button>
+      <button class="nav-item" onclick="nav('evinsurance')"><span class="nav-icon">⚡</span> EV & Insurance</button>
       <div class="nav-section-label">Account</div>
       <button class="nav-item" onclick="nav('team')"><span class="nav-icon">👥</span> Team</button>
       <button class="nav-item" onclick="nav('reports')"><span class="nav-icon">📄</span> Export Reports</button>
@@ -643,11 +644,16 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                   <option value="nissan">Nissan</option><option value="ford">Ford</option><option value="chevrolet">Chevrolet</option><option value="gmc">GMC</option>
                   <option value="dodge">Dodge</option><option value="ram">RAM</option><option value="jeep">Jeep</option><option value="bmw">BMW</option>
                   <option value="mercedes">Mercedes-Benz</option><option value="audi">Audi</option><option value="volkswagen">Volkswagen</option>
-                  <option value="landrover">Land Rover</option><option value="fiat">Fiat</option><option value="alfa">Alfa Romeo</option><option value="other">Other</option>
+                  <option value="landrover">Land Rover</option><option value="fiat">Fiat</option><option value="alfa">Alfa Romeo</option>
+                  <optgroup label="EV Brands">
+                    <option value="tesla">Tesla</option><option value="rivian">Rivian</option><option value="lucid">Lucid</option>
+                    <option value="polestar">Polestar</option><option value="byd">BYD</option><option value="nio">NIO</option><option value="xpeng">XPENG</option>
+                  </optgroup>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div class="form-group"><label class="form-label">Fuel Type ★</label>
-                <select class="form-select" id="f-fueltype">
+                <select class="form-select" id="f-fueltype" onchange="toggleEVFields()">
                   <option value="">Select</option><option value="gasoline">Gasoline</option><option value="hybrid">Hybrid</option>
                   <option value="diesel">Diesel</option><option value="phev">PHEV</option><option value="bev">Full Electric (BEV)</option>
                 </select>
@@ -668,9 +674,30 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                   <option value="">Select</option><option value="excellent">Excellent</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option>
                 </select>
               </div>
+              <div class="section-rule" id="ev-fields-rule" style="display:none">⚡ Electric Vehicle (EV) Data ★</div>
+              <div class="form-group ev-only" style="display:none"><label class="form-label">Battery Capacity (kWh)</label><input class="form-input" id="f-battery-kwh" type="number" placeholder="e.g. 75"/></div>
+              <div class="form-group ev-only" style="display:none"><label class="form-label">Battery Health % <span class="form-hint">if known</span></label><input class="form-input" id="f-battery-health" type="number" placeholder="e.g. 88" min="50" max="100"/></div>
+              <div class="form-group ev-only" style="display:none"><label class="form-label">Charging Type</label>
+                <select class="form-select" id="f-charge-type">
+                  <option value="">Select</option>
+                  <option value="ac_home">AC Home / Level 2</option>
+                  <option value="dc_fast">DC Fast Charging (CCS/CHAdeMO)</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+              <div class="section-rule">🛡️ Insurance ★</div>
+              <div class="form-group"><label class="form-label">Annual Insurance ($) ★ <span class="form-hint">affects scoring</span></label><input class="form-input" id="f-insurance" type="number" placeholder="e.g. 1800" oninput="toggleEVFields()"/></div>
+              <div class="form-group"><label class="form-label">Insurance Provider</label><input class="form-input" id="f-insurer" placeholder="e.g. Zurich Fleet"/></div>
+              <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="date"/></div>
               <div class="section-rule">Organisation</div>
               <div class="form-group"><label class="form-label">Department / Driver</label><input class="form-input" id="f-dept" placeholder="e.g. Sales Team A"/></div>
               <div class="form-group"><label class="form-label">Expected Annual km ★</label><input class="form-input" id="f-expected" type="number" placeholder="e.g. 25000 (target)"/></div>
+            </div>
+            <div id="ev-range-info" style="display:none;background:#f0f9ff;border:1px solid #bde0f5;border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;color:#1a4a6a;line-height:1.6">
+              <strong>⚡ EV Fleet Tip:</strong> BEV mileage threshold for battery replacement risk is ~160,000 km (IEA 2024). Average battery degradation is 2.3% capacity/year. BEV insurance typically runs 20–35% higher than equivalent ICE vehicles — compare fleet insurance bundles to reduce this premium.
+            </div>
+            <div id="ins-tip" style="display:none;background:#f6f5f0;border:1px solid #e0ddd6;border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;color:#444;line-height:1.6">
+              <strong>🛡️ Insurance tip:</strong> Fleet policies covering 5+ vehicles typically cost 15–30% less per vehicle than individual policies. Ask for a fleet multi-vehicle discount. Annual renewal is also a good time to benchmark against competitors.
             </div>
             <div style="display:flex;gap:10px;margin-top:16px">
               <button class="btn btn-primary" style="width:auto" onclick="addVehicle()">Save Vehicle</button>
@@ -1153,6 +1180,95 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         </div>
       </div>
 
+
+      <!-- EV & INSURANCE SECTION -->
+      <div id="sec-evinsurance" style="display:none">
+
+        <!-- EV Fleet Overview -->
+        <div class="card" id="ev-fleet-card">
+          <div class="card-header">
+            <div class="card-title">⚡ Electric Vehicle Fleet</div>
+            <div class="card-sub" id="ev-fleet-count">—</div>
+          </div>
+          <div class="card-body">
+            <div id="ev-fleet-list"><div class="empty"><div class="empty-icon">⚡</div>No EVs in your fleet. Add a vehicle with BEV or PHEV fuel type.</div></div>
+          </div>
+        </div>
+
+        <!-- Insurance Overview -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🛡️ Insurance Overview</div>
+            <div class="card-sub" id="ins-total-label">—</div>
+          </div>
+          <div class="card-body">
+            <div id="ins-overview-list"><div class="empty"><div class="empty-icon">🛡️</div>No insurance data recorded. Add annual insurance cost when editing vehicles.</div></div>
+          </div>
+        </div>
+
+        <!-- Insurance Guide -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">💡 Fleet Insurance Guide</div><div class="card-sub">How to get the best coverage</div></div>
+          <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🏆 How to reduce your fleet premium</div>
+              <div style="font-size:13px;color:var(--stone);line-height:1.75">
+                <b>1. Fleet multi-vehicle policy</b> — 5+ vehicles on a single policy typically saves 15–30% vs individual policies. Insurers include Zurich FleetSmart, AXA Fleet, Aviva Fleet.<br><br>
+                <b>2. Telematics / black box</b> — fitting tracking devices can reduce premiums 10–25%. Insurers use driving behaviour data. Most major fleet insurers offer this.<br><br>
+                <b>3. Named driver vs any driver</b> — named driver policies cost 20–40% less. Only viable if you have a stable driver roster.<br><br>
+                <b>4. Annual payment</b> — paying annually instead of monthly saves typically 8–12% interest charges.<br><br>
+                <b>5. Excess management</b> — raising your voluntary excess lowers the premium. For a fleet, self-insuring small claims (&lt;$1,500) often saves money in aggregate.<br><br>
+                <b>6. Renewal benchmarking</b> — fleet insurance should be tendered every 2–3 years minimum. Loyalty rarely pays — get at least 3 quotes each renewal cycle.
+              </div>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">⚡ EV-Specific Insurance Notes</div>
+              <div style="font-size:13px;color:var(--stone);line-height:1.75">
+                <b>EV premiums are 20–35% higher</b> than equivalent ICE vehicles (LexisNexis Risk Solutions 2024). Reasons:<br><br>
+                • Higher vehicle value → higher replacement cost<br>
+                • Battery repair/replacement: $8,000–$20,000<br>
+                • Fewer specialist repairers → higher labour cost<br>
+                • Evolving claims data → conservative pricing<br><br>
+                <b>How to reduce EV insurance costs:</b><br>
+                • Choose insurers with dedicated EV products (e.g. Zurich EV Fleet, Aviva EV, Direct Line EV Fleet)<br>
+                • Ensure charging infrastructure is covered (cable theft, charger damage)<br>
+                • Check battery coverage — some policies exclude gradual degradation<br>
+                • For PHEV: confirm both ICE and EV modes are covered equally<br>
+                • Ask about agreed value vs market value — EV depreciation is faster than ICE in some segments<br><br>
+                <b>Battery replacement risk flag:</b> If a BEV in your fleet is over 8 years old or has &gt;160,000 km, battery replacement cost ($8k–$20k) should factor into your replacement vs repair decision. gofleetzy flags this in the score.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EV vs ICE TCO Calculator -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 EV vs ICE Total Cost Comparison</div><div class="card-sub">Research-based benchmarks (ICCT 2024)</div></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+              <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">BEV Avg CPM</div>
+                <div style="font-size:28px;font-weight:800;color:var(--green)">$0.10</div>
+                <div style="font-size:12px;color:var(--stone)">per km (electricity + maint)</div>
+              </div>
+              <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">ICE Avg CPM</div>
+                <div style="font-size:28px;font-weight:800;color:var(--yellow)">$0.20</div>
+                <div style="font-size:12px;color:var(--stone)">per km (fuel + maint)</div>
+              </div>
+              <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">BEV Insurance Premium</div>
+                <div style="font-size:28px;font-weight:800;color:var(--red)">+28%</div>
+                <div style="font-size:12px;color:var(--stone)">above equivalent ICE</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--stone);border-top:1px solid var(--border);padding-top:12px;line-height:1.8">
+              Sources: ICCT Fleet Electrification Report 2024 · BloombergNEF EV Outlook 2024 · LexisNexis Risk Solutions EV Insurance Index 2024 · IEA Global EV Outlook 2024 · J.D. Power 2024 Initial Quality Study. All figures are indicative averages — actual costs vary by region, vehicle model, and operator profile. gofleetzy uses these benchmarks to calibrate replacement scores for EV fleet vehicles.
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div><!-- /content -->
   </main>
 </div><!-- /app -->
@@ -1379,9 +1495,18 @@ const BRAND_RELIABILITY = {
   toyota:0,lexus:0,honda:0,acura:0,mazda:1,subaru:1,
   hyundai:2,kia:2,nissan:3,volkswagen:3,ford:4,
   chevrolet:6,gmc:6,dodge:6,ram:5,jeep:7,
-  bmw:4,mercedes:4,audi:5,landrover:8,fiat:8,alfa:8,other:3
+  bmw:4,mercedes:4,audi:5,landrover:8,fiat:8,alfa:8,
+  // EV brands — based on J.D. Power IQS & Consumer Reports EV reliability surveys 2023-2025
+  tesla:4,    // Above avg mechanically but high body/software issue rate (J.D. Power 2024)
+  rivian:6,   // Below avg — early production quality issues (CR 2024)
+  lucid:5,    // Limited data — below avg reliability score
+  polestar:5, // Below avg (Volvo platform but SW issues)
+  byd:2,      // Good reliability for price point (JATO 2024)
+  nio:4,      // Average — limited Western data
+  xpeng:4,   // Average — limited Western data
+  other:3
 };
-const BRAND_LABEL = {toyota:'Toyota',lexus:'Lexus',honda:'Honda',acura:'Acura',mazda:'Mazda',subaru:'Subaru',hyundai:'Hyundai',kia:'Kia',nissan:'Nissan',ford:'Ford',chevrolet:'Chevrolet',gmc:'GMC',dodge:'Dodge',ram:'RAM',jeep:'Jeep',bmw:'BMW',mercedes:'Mercedes',audi:'Audi',volkswagen:'VW',landrover:'Land Rover',fiat:'Fiat',alfa:'Alfa Romeo',other:'Other'};
+const BRAND_LABEL = {toyota:'Toyota',lexus:'Lexus',honda:'Honda',acura:'Acura',mazda:'Mazda',subaru:'Subaru',hyundai:'Hyundai',kia:'Kia',nissan:'Nissan',ford:'Ford',chevrolet:'Chevrolet',gmc:'GMC',dodge:'Dodge',ram:'RAM',jeep:'Jeep',bmw:'BMW',mercedes:'Mercedes',audi:'Audi',volkswagen:'VW',landrover:'Land Rover',fiat:'Fiat',alfa:'Alfa Romeo',tesla:'Tesla',rivian:'Rivian',lucid:'Lucid',polestar:'Polestar',byd:'BYD',nio:'NIO',xpeng:'XPENG',other:'Other'};
 const BRAND_REL_LABEL = {0:'Excellent',1:'Very Good',2:'Good',3:'Average',4:'Below Avg',5:'Below Avg',6:'Poor',7:'Poor',8:'Very Poor',10:'Very Poor'};
 const PLAN_LIMITS = {
   trial:      { vehicles:10,   members:2,        label:'Free Trial',    badge:'#b8920e', ai:false, pdfBranded:false, csvImport:false, liveData:false,  trialDays:14 },
@@ -1787,11 +1912,13 @@ function demoLogin() {
   saveAccounts(accounts);
 
   setStore('fy_fleet_'+demoId, [
-    {id:1,model:'Ford Transit 2.0',year:'2014',mileage:'235000',brand:'ford',fueltype:'diesel',annual:'38000',maint:'5200',value:'8000',fuelcost:'4800',repairs:'5',downtime:'18',condition:'fair',dept:'Logistics',expected:'40000'},
-    {id:2,model:'Toyota Camry',year:'2019',mileage:'88000',brand:'toyota',fueltype:'gasoline',annual:'22000',maint:'1200',value:'22000',fuelcost:'2200',repairs:'1',downtime:'2',condition:'good',dept:'Sales',expected:'25000'},
-    {id:3,model:'Honda CR-V',year:'2017',mileage:'145000',brand:'honda',fueltype:'gasoline',annual:'28000',maint:'2800',value:'14000',fuelcost:'3100',repairs:'3',downtime:'7',condition:'fair',dept:'Field Service',expected:'30000'},
-    {id:4,model:'Nissan Navara',year:'2021',mileage:'42000',brand:'nissan',fueltype:'diesel',annual:'18000',maint:'800',value:'32000',fuelcost:'2400',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'20000'},
-    {id:5,model:'Jeep Wrangler',year:'2016',mileage:'178000',brand:'jeep',fueltype:'gasoline',annual:'12000',maint:'4500',value:'11000',fuelcost:'2800',repairs:'4',downtime:'11',condition:'fair',dept:'Ops',expected:'22000'},
+    {id:1,model:'Ford Transit 2.0',year:'2014',mileage:'235000',brand:'ford',fueltype:'diesel',annual:'38000',maint:'5200',value:'8000',fuelcost:'4800',repairs:'5',downtime:'18',condition:'fair',dept:'Logistics',expected:'40000',insurance:'1200',insurer:'Zurich Fleet'},
+    {id:2,model:'Toyota Camry',year:'2019',mileage:'88000',brand:'toyota',fueltype:'gasoline',annual:'22000',maint:'1200',value:'22000',fuelcost:'2200',repairs:'1',downtime:'2',condition:'good',dept:'Sales',expected:'25000',insurance:'980',insurer:'AXA Fleet'},
+    {id:3,model:'Honda CR-V',year:'2017',mileage:'145000',brand:'honda',fueltype:'gasoline',annual:'28000',maint:'2800',value:'14000',fuelcost:'3100',repairs:'3',downtime:'7',condition:'fair',dept:'Field Service',expected:'30000',insurance:'1050'},
+    {id:4,model:'Nissan Navara',year:'2021',mileage:'42000',brand:'nissan',fueltype:'diesel',annual:'18000',maint:'800',value:'32000',fuelcost:'2400',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'20000',insurance:'1100'},
+    {id:5,model:'Jeep Wrangler',year:'2016',mileage:'178000',brand:'jeep',fueltype:'gasoline',annual:'12000',maint:'4500',value:'11000',fuelcost:'2800',repairs:'4',downtime:'11',condition:'fair',dept:'Ops',expected:'22000',insurance:'1400'},
+    {id:6,model:'Tesla Model 3 LR',year:'2020',mileage:'112000',brand:'tesla',fueltype:'bev',annual:'25000',maint:'650',value:'28000',fuelcost:'1400',repairs:'1',downtime:'3',condition:'good',dept:'Sales',expected:'28000',insurance:'2100',insurer:'Direct Line EV',batteryKwh:'75',batteryHealth:'91',chargeType:'mixed'},
+    {id:7,model:'Tesla Model Y',year:'2022',mileage:'58000',brand:'tesla',fueltype:'bev',annual:'30000',maint:'580',value:'42000',fuelcost:'1650',repairs:'0',downtime:'1',condition:'excellent',dept:'Management',expected:'32000',insurance:'2400',insurer:'Aviva EV Fleet',batteryKwh:'82',batteryHealth:'97',chargeType:'dc_fast'},
   ]);
 
   setStore('fy_repairs_'+demoId, [
@@ -1846,33 +1973,75 @@ async function signOut() {
   document.getElementById('auth-screen').style.display = 'flex';
 }
 
-// ═══════════ SCORING ENGINE ═══════════
+// ═══════════ SCORING ENGINE (v2 — EV + Insurance aware) ═══════════
+// Research basis:
+//   EV battery degradation: BloombergNEF 2024 — avg ~2.3% capacity loss/yr, accelerating after yr 8
+//   BEV mileage threshold: 160,000 km triggers significant battery cost risk (IEA 2024)
+//   EV insurance premium: 20–35% higher than equivalent ICE (LexisNexis Risk Solutions 2024)
+//   Fleet EV TCO crossover: typically yr 4–6 vs ICE at yr 7–10 (ICCT Fleet Report 2024)
+//   Diesel regulatory risk: EU Euro 7, UK ZEV mandate — increasing compliance cost by 2030
+//   Insurance factor: annual_insurance / vehicle_value — >8% ratio flags poor value
+
 function score(v) {
   let total = 0; const bd = [];
+  const isBEV = (v.fueltype === 'bev');
+  const isPHEV = (v.fueltype === 'phev');
+  const isEV = isBEV || isPHEV;
   const age = CY - parseInt(v.year||CY);
-  let agePts = age<=3?age*1:age<=6?3+(age-3)*2:age<=9?9+(age-6)*3.5:age<=12?19.5+(age-9)*.5:20;
+
+  // ── Factor 1: TCO Crossover Age (max 20 pts) ─────────────────────
+  // EVs have lower mechanical wear but battery degradation accelerates after yr 8.
+  // BEVs get 2 extra grace years (pts delayed) but steeper curve from yr 8 onwards.
+  let agePts;
+  if (isBEV) {
+    // BEV curve: slower early (battery still healthy), steeper late (battery replacement risk)
+    agePts = age<=2?age*0.5:age<=5?1+(age-2)*1.5:age<=8?5.5+(age-5)*2:age<=11?11.5+(age-8)*2.8:20;
+  } else {
+    agePts = age<=3?age*1:age<=6?3+(age-3)*2:age<=9?9+(age-6)*3.5:age<=12?19.5+(age-9)*.5:20;
+  }
   agePts = Math.round(Math.min(agePts,20));
-  bd.push({label:'TCO Crossover Age',val:`${age} yrs`,pts:agePts,max:20});
+  bd.push({label:'TCO Crossover Age',val:`${age} yrs${isBEV?' (BEV curve)':''}`,pts:agePts,max:20});
   total+=agePts;
 
+  // ── Factor 2: Mileage / Battery Cycles (max 20 pts) ──────────────
+  // BEV: 160,000 km is the high-risk threshold (significant capacity loss risk).
+  //      Scale to that instead of ICE 250,000 km.
+  // Source: IEA Global EV Outlook 2024, BloombergNEF EV Battery Degradation Study 2024
   const km = parseInt(v.mileage)||0;
-  const kmPts = Math.round(Math.min(km/12500,20));
-  bd.push({label:'Mileage',val:`${km.toLocaleString()} km`,pts:kmPts,max:20});
+  let kmPts, kmLabel;
+  if (isBEV) {
+    kmPts = Math.round(Math.min(km/8000, 20)); // 160,000 km = 20 pts
+    kmLabel = `${km.toLocaleString()} km (BEV: 160k threshold)`;
+  } else {
+    kmPts = Math.round(Math.min(km/12500, 20)); // 250,000 km = 20 pts
+    kmLabel = `${km.toLocaleString()} km`;
+  }
+  bd.push({label:'Mileage / Battery Cycles',val:kmLabel,pts:kmPts,max:20});
   total+=kmPts;
 
+  // ── Factor 3: Cost Per km (CPM) (max 20 pts) ─────────────────────
+  // For EVs: fuelcost = electricity cost. BEV avg CPM ~$0.08–$0.12/km vs ICE $0.15–$0.25.
+  // EVs are benchmarked against a lower threshold ($0.12 baseline instead of $0.17).
   const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0, fuelcost=parseInt(v.fuelcost)||0;
+  const insurance=parseInt(v.insurance)||0;
+  // Include insurance in CPM if provided (true total operating cost)
+  const totalOpCost = maint + fuelcost + insurance;
   let cpmPts=0,cpmVal='—';
-  if(annual>0&&(maint+fuelcost)>0){
-    const cpm=(maint+fuelcost)/annual; cpmVal='$'+cpm.toFixed(2)+'/km';
-    if(cpm<=.17)cpmPts=0;
-    else if(cpm<=.25)cpmPts=Math.round((cpm-.17)/.08*8);
-    else if(cpm<=.40)cpmPts=Math.round(8+(cpm-.25)/.15*8);
-    else cpmPts=Math.round(16+Math.min((cpm-.40)/.20*4,4));
+  if(annual>0 && totalOpCost>0){
+    const cpm = totalOpCost/annual;
+    cpmVal = '$'+cpm.toFixed(2)+'/km'+(insurance>0?' (incl. ins.)':'');
+    const cpmBaseline = isBEV ? 0.12 : 0.17; // EV lower baseline
+    const cpmHigh     = isBEV ? 0.22 : 0.40;
+    if(cpm<=cpmBaseline) cpmPts=0;
+    else if(cpm<=cpmBaseline+0.08) cpmPts=Math.round((cpm-cpmBaseline)/0.08*8);
+    else if(cpm<=cpmHigh)          cpmPts=Math.round(8+(cpm-(cpmBaseline+0.08))/(cpmHigh-cpmBaseline-0.08)*8);
+    else                           cpmPts=Math.round(16+Math.min((cpm-cpmHigh)/0.20*4,4));
     cpmPts=Math.min(cpmPts,20);
   }
   bd.push({label:'Cost Per km (CPM)',val:cpmVal,pts:cpmPts,max:20,isnew:true});
   total+=cpmPts;
 
+  // ── Factor 4: Repair-to-Value Ratio (max 15 pts) ─────────────────
   const value=parseInt(v.value)||0;
   let rtvPts=0,rtvVal='—';
   if(value>0&&maint>0){
@@ -1886,28 +2055,72 @@ function score(v) {
   bd.push({label:'Repair-to-Value Ratio',val:rtvVal,pts:rtvPts,max:15,isnew:true});
   total+=rtvPts;
 
+  // ── Factor 5: Downtime Days (max 15 pts) ─────────────────────────
   const dt=parseInt(v.downtime)||0;
   let dtPts=dt<=2?0:dt<=5?Math.round((dt-2)/3*5):dt<=15?Math.round(5+(dt-5)/10*10):15;
   dtPts=Math.min(dtPts,15);
   bd.push({label:'Downtime Days',val:`${dt} days/yr`,pts:dtPts,max:15,isnew:true});
   total+=dtPts;
 
+  // ── Factor 6: Brand Reliability (max 10 pts) ─────────────────────
   const brand=v.brand||'other';
   const brandPts=Math.min(BRAND_RELIABILITY[brand]??3,10);
   bd.push({label:'Brand Reliability',val:`${BRAND_LABEL[brand]||'—'} (${BRAND_REL_LABEL[brandPts]||'Avg'})`,pts:brandPts,max:10,isnew:true});
   total+=brandPts;
 
-  const fuelMap={gasoline:0,hybrid:0,diesel:1,phev:3,bev:5,'':0};
+  // ── Factor 7: Fuel/Technology Risk + Condition (max 10 pts) ──────
+  // Updated EV logic:
+  //   BEV age ≥ 8 → battery replacement window adds risk (+3)
+  //   BEV mileage ≥ 160k → high degradation risk (+3, capped with condition)
+  //   Diesel → regulatory headwind +1
+  //   PHEV → dual-powertrain complexity +2
+  //   Condition modifier: excellent −5, good 0, fair +3, poor +5
   const condMap={excellent:-5,good:0,fair:3,poor:5,'':0};
-  const f7=Math.max(0,Math.min((fuelMap[v.fueltype||'']||0)+(condMap[v.condition||'']||0),10));
-  const ftLabel={gasoline:'Gasoline',hybrid:'Hybrid',diesel:'Diesel',phev:'PHEV',bev:'BEV','':'—'};
-  bd.push({label:'Fuel Type + Condition',val:`${ftLabel[v.fueltype||'']} / ${v.condition||'—'}`,pts:f7,max:10,isnew:true});
+  const condAdj = condMap[v.condition||'']||0;
+  let techRisk = 0;
+  let techLabel = '';
+  if (isBEV) {
+    const battRisk = (age>=8?3:0) + (km>=160000?3:0);
+    techRisk = Math.max(0, battRisk + condAdj);
+    techLabel = `BEV${age>=8?' (batt. age risk)':''}${km>=160000?' (high cycles)':''}`;
+  } else if (isPHEV) {
+    techRisk = Math.max(0, 2 + condAdj);
+    techLabel = 'PHEV / '+( v.condition||'—');
+  } else if (v.fueltype==='diesel') {
+    techRisk = Math.max(0, 1 + condAdj);
+    techLabel = 'Diesel / '+(v.condition||'—');
+  } else {
+    techRisk = Math.max(0, condAdj);
+    techLabel = (v.fueltype||'ICE') + ' / '+(v.condition||'—');
+  }
+  const f7 = Math.min(techRisk, 10);
+  bd.push({label:'Tech Risk + Condition',val:techLabel,pts:f7,max:10,isnew:true});
   total+=f7;
+
+  // ── Factor 8 (NEW): Insurance Cost Ratio (max 5 pts) ─────────────
+  // High insurance relative to vehicle value = poor fleet value.
+  // BEV insurance is 20–35% higher than ICE (LexisNexis 2024).
+  // Threshold: >8% of vehicle value/yr = flag. >15% = replace.
+  let insPts=0, insVal='—';
+  if(insurance>0 && value>0){
+    const insRatio = insurance/value;
+    insVal = Math.round(insRatio*100)+'% of value/yr';
+    if(insRatio<=0.06) insPts=0;
+    else if(insRatio<=0.10) insPts=Math.round((insRatio-0.06)/0.04*2);
+    else if(insRatio<=0.15) insPts=Math.round(2+(insRatio-0.10)/0.05*3);
+    else insPts=5;
+  } else if(insurance>0) {
+    insVal = '$'+insurance.toLocaleString()+'/yr';
+    insPts=0; // can't score ratio without value
+  }
+  bd.push({label:'Insurance Cost Ratio',val:insVal,pts:insPts,max:5,isnew:true,isins:true});
+  total+=insPts;
 
   const expected=parseInt(v.expected)||0;
   const underutil=expected>0&&annual>0&&annual<expected*.5;
+  const batteryWarning = isBEV && (age>=8 || km>=160000);
 
-  return {score:Math.min(Math.round(total),100),bd,underutil,cpmVal};
+  return {score:Math.min(Math.round(total),100),bd,underutil,cpmVal,batteryWarning,isBEV,isEV};
 }
 
 function status(s){return s>=65?'critical':s>=40?'watch':'ok'}
@@ -1936,14 +2149,14 @@ function nav(sec, opts) {
     if (!can('settings') && sec==='settings') { toast('Only admins can access settings.'); return; }
     if (!can('addVehicle') && sec==='add') { toast('Your viewer role cannot add vehicles.'); return; }
   }
-  ['dashboard','fleet','add','recs','import','livedata','team','reports','settings','invoice','repairs'].forEach(s => {
+  ['dashboard','fleet','add','recs','import','livedata','team','reports','settings','invoice','repairs','evinsurance'].forEach(s => {
     const el = document.getElementById('sec-'+s);
     if(el) el.style.display = s===sec ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.getAttribute('onclick')?.includes("'"+sec+"'"));
   });
-  const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',import:'Import CSV',livedata:'Live Data & AI',team:'Team & Plan',reports:'Export Reports',settings:'Settings',invoice:'Scan Invoice',repairs:'Repairs & Alerts'};
+  const titles={dashboard:'Dashboard',fleet:'Fleet Overview',add:'Add Vehicle',recs:'Recommendations',import:'Import CSV',livedata:'Live Data & AI',team:'Team & Plan',reports:'Export Reports',settings:'Settings',invoice:'Scan Invoice',repairs:'Repairs & Alerts',evinsurance:'EV & Insurance'};
   document.getElementById('page-title').textContent = titles[sec]||sec;
   activeSection = sec;
   if(sec==='fleet') renderTable();
@@ -1955,6 +2168,8 @@ function nav(sec, opts) {
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
+  if(sec==='evinsurance') renderEVInsurance();
+  if(sec==='add') toggleEVFields();
 
   // Save current section so reload restores it
   try { localStorage.setItem('fy_last_sec', sec); } catch(e) {}
@@ -2102,10 +2317,33 @@ async function addVehicle() {
     condition:document.getElementById('f-condition').value,
     dept:document.getElementById('f-dept').value.trim(),
     expected:document.getElementById('f-expected').value,
+    insurance:document.getElementById('f-insurance').value,
+    insurer:document.getElementById('f-insurer').value.trim(),
+    insRenewal:document.getElementById('f-ins-renewal').value,
+    batteryKwh:document.getElementById('f-battery-kwh').value,
+    batteryHealth:document.getElementById('f-battery-health').value,
+    chargeType:document.getElementById('f-charge-type').value,
   };
   await addVehicleToStore(newV);clearForm();toast(`${model} added.`);nav('fleet');
 }
-function clearForm(){['f-model','f-year','f-mileage','f-annual','f-maint','f-value','f-fuelcost','f-repairs','f-downtime','f-dept','f-expected'].forEach(id=>document.getElementById(id).value='');['f-brand','f-fueltype','f-condition'].forEach(id=>document.getElementById(id).value='');}
+function clearForm(){
+  ['f-model','f-year','f-mileage','f-annual','f-maint','f-value','f-fuelcost','f-repairs','f-downtime','f-dept','f-expected',
+   'f-insurance','f-insurer','f-ins-renewal','f-battery-kwh','f-battery-health'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-brand','f-fueltype','f-condition','f-charge-type'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  toggleEVFields();
+}
+// Show/hide EV-specific fields based on fuel type selection
+function toggleEVFields(){
+  const ft = document.getElementById('f-fueltype')?.value||'';
+  const isBEV = ft==='bev'||ft==='phev';
+  document.querySelectorAll('.ev-only').forEach(el=>el.style.display=isBEV?'':'none');
+  const rule = document.getElementById('ev-fields-rule');
+  if(rule) rule.style.display=isBEV?'':'none';
+  const evTip = document.getElementById('ev-range-info');
+  if(evTip) evTip.style.display=isBEV?'block':'none';
+  const insTip = document.getElementById('ins-tip');
+  if(insTip) insTip.style.display=document.getElementById('f-insurance')?.value>0?'block':'none';
+}
 async function delVehicle(id){if(gate('','deleteVehicle'))return;const fleet=await getFleet();const v=fleet.find(x=>x.id===id);if(!v)return;deleteId=id;document.getElementById('del-name').textContent=v.model;openModal('modal-delete');}
 async function confirmDelete(){await deleteVehicleFromStore(deleteId);closeModal('modal-delete');toast('Vehicle removed.');await renderTable();}
 
@@ -2115,7 +2353,8 @@ async function showBreakdown(id) {
   const {score:s,bd,underutil}=score(v);
   const st=status(s);const sc=statusColor(s);
   document.getElementById('bd-title').textContent=`Score Breakdown — ${v.model}`;
-  let html=`<div class="bd-total"><div class="bd-score" style="color:${sc}">${s}</div><div class="bd-label">out of 100 · <strong style="color:${sc}">${statusLabel(s)}</strong></div></div>
+  const {batteryWarning,isBEV:bdIsBEV}=score(v);
+  let html=`<div class="bd-total"><div class="bd-score" style="color:${sc}">${s}</div><div class="bd-label">out of 100 · <strong style="color:${sc}">${statusLabel(s)}</strong></div></div>${bdIsBEV?'<div style="background:#e6f4ed;border:1px solid #90d0aa;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1d7040">⚡ <strong>EV scoring active:</strong> Battery cycle threshold (160k km), BEV age curve, and tech risk adjustments applied.</div>':''}${batteryWarning?'<div style="background:#f7e4e4;border:1px solid #d09090;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#a32d2d">⚠️ <strong>Battery replacement window:</strong> This BEV is over 8 years old or has exceeded 160,000 km. Budget $8,000–$20,000 for battery assessment or replacement when evaluating replacement cost.</div>':''}
   <table class="bd-table">
   <tr style="background:var(--mist)"><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Factor</td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Value</td><td class="bd-bar-cell"></td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone);text-align:right">Pts</td></tr>`;
   bd.forEach(f=>{
@@ -4030,6 +4269,84 @@ function applyScanEdits() {
   document.getElementById('sr-edit-mode').style.display = 'none';
   document.getElementById('sr-view-mode').style.display = '';
   document.getElementById('sr-edit-btn').textContent = '✏️ Edit';
+}
+
+
+// ═══════════ EV & INSURANCE DASHBOARD ═══════════
+async function renderEVInsurance() {
+  const fleet = await getFleet();
+  const evVehicles = fleet.filter(v => v.fueltype==='bev'||v.fueltype==='phev');
+  const insVehicles = fleet.filter(v => parseInt(v.insurance)>0);
+
+  // EV fleet overview
+  const evCountEl = document.getElementById('ev-fleet-count');
+  if(evCountEl) evCountEl.textContent = evVehicles.length
+    ? `${evVehicles.length} EV${evVehicles.length!==1?'s':''} · ${fleet.length-evVehicles.length} ICE/Hybrid`
+    : 'No EVs in fleet';
+
+  const evList = document.getElementById('ev-fleet-list');
+  if(evList) {
+    if(!evVehicles.length) {
+      evList.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>No BEV or PHEV vehicles in your fleet.</div>';
+    } else {
+      const CY2 = new Date().getFullYear();
+      evList.innerHTML = evVehicles.map(v => {
+        const age = CY2 - parseInt(v.year||CY2);
+        const km = parseInt(v.mileage)||0;
+        const battWarn = age>=8||km>=160000;
+        const health = v.batteryHealth ? `${v.batteryHealth}% health` : 'health unknown';
+        const kwh = v.batteryKwh ? `${v.batteryKwh} kWh` : '—';
+        const {score:s} = score(v);
+        return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:8px;background:${v.fueltype==='bev'?'#1d9e7522':'#c8603a22'};display:flex;align-items:center;justify-content:center;font-size:18px">${v.fueltype==='bev'?'⚡':'🔋'}</div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700">${v.model} <span style="font-size:11px;background:${v.fueltype==='bev'?'#e6f4ed':'#f2ece7'};color:${v.fueltype==='bev'?'#2e7d52':'#c8603a'};padding:2px 7px;border-radius:8px;font-weight:600">${v.fueltype==='bev'?'BEV':'PHEV'}</span></div>
+            <div style="font-size:12px;color:var(--stone)">${v.year||'—'} · ${km.toLocaleString()} km · ${kwh} · ${health}</div>
+          </div>
+          ${battWarn?'<div style="font-size:11px;background:#f7e4e4;color:#a82828;padding:4px 10px;border-radius:7px;font-weight:700">⚠️ Battery Risk</div>':''}
+          <div style="text-align:right"><div style="font-size:16px;font-weight:800;color:${s>=65?'var(--red)':s>=40?'var(--yellow)':'var(--green)'}">${s}</div><div style="font-size:11px;color:var(--stone)">score</div></div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Insurance overview
+  const insTotalEl = document.getElementById('ins-total-label');
+  const totalIns = insVehicles.reduce((s,v)=>s+parseInt(v.insurance||0),0);
+  if(insTotalEl) insTotalEl.textContent = insVehicles.length
+    ? `${insVehicles.length} vehicles tracked · $${totalIns.toLocaleString()}/yr total`
+    : 'No insurance data';
+
+  const insList = document.getElementById('ins-overview-list');
+  if(insList) {
+    if(!insVehicles.length) {
+      insList.innerHTML = '<div class="empty"><div class="empty-icon">🛡️</div>Add annual insurance costs when editing vehicles to track your fleet insurance spend.</div>';
+    } else {
+      // Sort by insurance cost ratio (most expensive relative to value first)
+      const sorted = insVehicles.slice().sort((a,b)=>{
+        const ra=(parseInt(a.insurance)||0)/(parseInt(a.value)||1);
+        const rb=(parseInt(b.insurance)||0)/(parseInt(b.value)||1);
+        return rb-ra;
+      });
+      insList.innerHTML = sorted.map(v=>{
+        const ins = parseInt(v.insurance)||0;
+        const val = parseInt(v.value)||0;
+        const ratio = val>0 ? Math.round(ins/val*100) : null;
+        const isBEV2 = v.fueltype==='bev';
+        const renewStr = v.insRenewal ? `· Renewal: ${v.insRenewal}` : '';
+        const insurer = v.insurer||'Unknown insurer';
+        const flagHigh = ratio!==null && ratio>10;
+        return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700">${v.model} <span style="font-size:11px;color:var(--stone)">${insurer} ${renewStr}</span></div>
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">$${ins.toLocaleString()}/yr${ratio!==null?' · '+ratio+'% of vehicle value':''}${isBEV2?' · EV premium applies':''}</div>
+          </div>
+          ${flagHigh?'<div style="font-size:11px;background:#f7f0d8;color:#b8920e;padding:4px 10px;border-radius:7px;font-weight:700">High ratio</div>':''}
+          <div style="text-align:right;font-size:16px;font-weight:800;color:var(--accent)">$${ins.toLocaleString()}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 // ═══════════ INIT ═══════════
