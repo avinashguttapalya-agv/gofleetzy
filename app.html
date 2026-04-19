@@ -1253,29 +1253,32 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           </div>
         </div>
 
-        <!-- EV vs ICE TCO Calculator -->
+        <!-- EV vs ICE TCO Calculator — live from fleet data -->
         <div class="card">
-          <div class="card-header"><div class="card-title">📊 EV vs ICE Total Cost Comparison</div><div class="card-sub">Research-based benchmarks (ICCT 2024)</div></div>
+          <div class="card-header"><div class="card-title">📊 EV vs ICE Total Cost Comparison</div><div class="card-sub" id="ev-ice-sub">Calculating from your fleet...</div></div>
           <div class="card-body">
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
               <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">BEV Avg CPM</div>
-                <div style="font-size:28px;font-weight:800;color:var(--green)">$0.10</div>
-                <div style="font-size:12px;color:var(--stone)">per km (electricity + maint)</div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">Your BEV Avg CPM</div>
+                <div style="font-size:28px;font-weight:800;color:var(--green)" id="ev-ice-bev-cpm">—</div>
+                <div style="font-size:12px;color:var(--stone)" id="ev-ice-bev-sub">per km (electricity + maint)</div>
               </div>
               <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">ICE Avg CPM</div>
-                <div style="font-size:28px;font-weight:800;color:var(--yellow)">$0.20</div>
-                <div style="font-size:12px;color:var(--stone)">per km (fuel + maint)</div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">Your ICE Avg CPM</div>
+                <div style="font-size:28px;font-weight:800;color:var(--yellow)" id="ev-ice-ice-cpm">—</div>
+                <div style="font-size:12px;color:var(--stone)" id="ev-ice-ice-sub">per km (fuel + maint)</div>
               </div>
               <div style="background:var(--mist);border-radius:10px;padding:16px;text-align:center">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">BEV Insurance Premium</div>
-                <div style="font-size:28px;font-weight:800;color:var(--red)">+28%</div>
-                <div style="font-size:12px;color:var(--stone)">above equivalent ICE</div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--stone);margin-bottom:8px">EV Insurance Premium</div>
+                <div style="font-size:28px;font-weight:800;color:var(--red)" id="ev-ice-ins-diff">—</div>
+                <div style="font-size:12px;color:var(--stone)" id="ev-ice-ins-sub">vs ICE in your fleet</div>
               </div>
             </div>
-            <div style="font-size:12px;color:var(--stone);border-top:1px solid var(--border);padding-top:12px;line-height:1.8">
-              Sources: ICCT Fleet Electrification Report 2024 · BloombergNEF EV Outlook 2024 · LexisNexis Risk Solutions EV Insurance Index 2024 · IEA Global EV Outlook 2024 · J.D. Power 2024 Initial Quality Study. All figures are indicative averages — actual costs vary by region, vehicle model, and operator profile. gofleetzy uses these benchmarks to calibrate replacement scores for EV fleet vehicles.
+            <div id="ev-ice-breakdown" style="font-size:13px;color:var(--stone);line-height:2;border-top:1px solid var(--border);padding-top:14px"></div>
+            <div style="font-size:11px;color:var(--stone);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;line-height:1.8">
+              CPM = (Annual Maintenance + Annual Fuel/Electricity Cost) ÷ Annual km.
+              When no fleet data is available, falls back to ICCT 2024 industry benchmarks (BEV: €0.10/km, ICE: €0.20/km).
+              Insurance uplift sourced from LexisNexis Risk Solutions EV Insurance Index 2024.
             </div>
           </div>
         </div>
@@ -1594,7 +1597,7 @@ function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Anon key is safe to hardcode — it is designed to be public.
 // RLS policies protect all data. Only service_role key must stay secret.
 // Replace these with your actual Supabase project URL and anon key.
-const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
+const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co'';          // e.g. https://xxxx.supabase.co
 const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
 
 function initSupabase() {
@@ -3270,25 +3273,34 @@ function openAddServiceModal() {
   openModal('modal-service');
 }
 
-function saveServiceRecord() {
+async function saveServiceRecord() {
   const vid = document.getElementById('svc-vehicle-select').value;
   const lastDate = document.getElementById('svc-last-date').value;
-  const interval = parseInt(document.getElementById('svc-interval').value);
+  const interval = parseInt(document.getElementById('svc-interval').value) || 365;
   const notes = document.getElementById('svc-notes').value.trim();
   if (!vid || !lastDate) { toast('Please select a vehicle and last service date.'); return; }
 
-  const records = getServiceRecords().filter(r => String(r.vehicleId) !== vid);
+  // getServiceRecords is async — must await it
+  const existing = await getServiceRecords();
+  const records  = existing.filter(r => String(r.vehicleId) !== vid);
+
   const next = new Date(lastDate);
   next.setDate(next.getDate() + interval);
 
-  getFleet().then(fleet => {
-    const v = fleet.find(x => String(x.id) === vid);
-    records.push({ vehicleId: parseInt(vid), vehicleModel: v?.model||'Unknown', lastDate, nextDate: next.toISOString().split('T')[0], intervalDays: interval, notes });
-    saveServiceRecords(records);
-    closeModal('modal-service');
-    toast('Service schedule saved.');
-    renderUnifiedDashboard();
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === vid);
+  records.push({
+    vehicleId:    parseInt(vid),
+    vehicleModel: v?.model || 'Unknown',
+    lastDate,
+    nextDate:     next.toISOString().split('T')[0],
+    intervalDays: interval,
+    notes
   });
+  await saveServiceRecords(records);
+  closeModal('modal-service');
+  toast('✅ Service schedule saved.');
+  renderUnifiedDashboard();
 }
 
 function deleteServiceRecord(vehicleId) {
@@ -4632,6 +4644,74 @@ async function renderEVInsurance() {
   if(insTotalEl) insTotalEl.textContent = insVehicles.length
     ? `${insVehicles.length} vehicles tracked · $${totalIns.toLocaleString()}/yr total`
     : 'No insurance data';
+
+  // ── Live EV vs ICE cost comparison ────────────────────────────────
+  const sym = getAccountCurrency().symbol;
+  const bevFleet = fleet.filter(v => v.fueltype==='bev');
+  const iceFleet = fleet.filter(v => v.fueltype!=='bev' && v.fueltype!=='phev');
+
+  // CPM = (maint + fuelcost) / annual_km  — only for vehicles with enough data
+  function fleetAvgCPM(vehicles) {
+    const valid = vehicles.filter(v => parseFloat(v.annual)>0 && (parseFloat(v.maint)||0)+(parseFloat(v.fuelcost)||0)>0);
+    if (!valid.length) return null;
+    const cpms = valid.map(v => (parseFloat(v.maint||0)+parseFloat(v.fuelcost||0)) / parseFloat(v.annual));
+    return cpms.reduce((a,b)=>a+b,0) / cpms.length;
+  }
+
+  function fleetAvgInsurance(vehicles) {
+    const valid = vehicles.filter(v => parseFloat(v.insurance)>0);
+    if (!valid.length) return null;
+    return valid.reduce((s,v)=>s+parseFloat(v.insurance||0),0) / valid.length;
+  }
+
+  const bevCPM = fleetAvgCPM(bevFleet);
+  const iceCPM = fleetAvgCPM(iceFleet);
+  const bevIns = fleetAvgInsurance(bevFleet);
+  const iceIns = fleetAvgInsurance(iceFleet);
+
+  // Fallback to ICCT 2024 benchmarks if no fleet data
+  const BENCH_BEV_CPM = 0.10;
+  const BENCH_ICE_CPM = 0.20;
+  const BENCH_INS_UPLIFT = '+28%';
+
+  const bevCPMDisplay  = bevCPM  !== null ? sym + bevCPM.toFixed(2)  : sym + BENCH_BEV_CPM.toFixed(2);
+  const iceCPMDisplay  = iceCPM  !== null ? sym + iceCPM.toFixed(2)  : sym + BENCH_ICE_CPM.toFixed(2);
+  const insDiffDisplay = (bevIns !== null && iceIns !== null && iceIns > 0)
+    ? '+' + Math.round((bevIns - iceIns) / iceIns * 100) + '%'
+    : BENCH_INS_UPLIFT;
+
+  const bevSubTxt = bevFleet.length
+    ? `${bevFleet.filter(v=>parseFloat(v.annual)>0).length} BEV${bevFleet.length>1?'s':''} in fleet`
+    : 'industry benchmark';
+  const iceSubTxt = iceFleet.length
+    ? `${iceFleet.filter(v=>parseFloat(v.annual)>0).length} ICE vehicle${iceFleet.length>1?'s':''} in fleet`
+    : 'industry benchmark';
+  const insSubTxt = (bevIns && iceIns) ? 'avg from your fleet' : 'LexisNexis 2024 benchmark';
+
+  // Savings per 25,000 km/yr
+  const effBevCPM = bevCPM ?? BENCH_BEV_CPM;
+  const effIceCPM = iceCPM ?? BENCH_ICE_CPM;
+  const annualSaving = (effIceCPM - effBevCPM) * 25000;
+  const savingStr = annualSaving > 0
+    ? `At 25,000 km/yr, a BEV saves <strong>${sym}${Math.round(annualSaving).toLocaleString()}/yr</strong> in running costs vs ICE.`
+    : `At 25,000 km/yr, your ICE fleet is running cheaper than your BEVs — check fuel and maintenance cost entries.`;
+
+  const subEl = document.getElementById('ev-ice-sub');
+  if(subEl) subEl.textContent = bevFleet.length||iceFleet.length ? 'Based on your fleet data' : 'Industry benchmarks (ICCT 2024)';
+  const bevEl = document.getElementById('ev-ice-bev-cpm');  if(bevEl) bevEl.textContent = bevCPMDisplay;
+  const iceEl = document.getElementById('ev-ice-ice-cpm');  if(iceEl) iceEl.textContent = iceCPMDisplay;
+  const insEl = document.getElementById('ev-ice-ins-diff'); if(insEl) insEl.textContent = insDiffDisplay;
+  const bSub  = document.getElementById('ev-ice-bev-sub');  if(bSub) bSub.textContent = bevSubTxt;
+  const iSub  = document.getElementById('ev-ice-ice-sub');  if(iSub) iSub.textContent = iceSubTxt;
+  const isSub = document.getElementById('ev-ice-ins-sub');  if(isSub) isSub.textContent = insSubTxt;
+  const brkEl = document.getElementById('ev-ice-breakdown');
+  if(brkEl) brkEl.innerHTML = `
+    ${savingStr}<br>
+    <span style="color:var(--stone)">
+    CPM calculated as: (Annual Maintenance + Annual Energy Cost) ÷ Annual km · 
+    ${bevFleet.length?bevFleet.length+' BEV, ':''}${iceFleet.length?iceFleet.length+' ICE/Hybrid':''} vehicles used.
+    Insurance diff: BEV avg ${bevIns?sym+Math.round(bevIns):'—'}/yr vs ICE avg ${iceIns?sym+Math.round(iceIns):'—'}/yr.
+    </span>`;
 
   const insList = document.getElementById('ins-overview-list');
   if(insList) {
