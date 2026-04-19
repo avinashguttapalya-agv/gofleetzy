@@ -2356,7 +2356,10 @@ function nav(sec, opts) {
   // Show Export PDF button only on Fleet Overview
   const topbarPdf = document.getElementById('topbar-pdf-btn');
   if (topbarPdf) topbarPdf.style.display = sec==='fleet' ? '' : 'none';
-  if(sec==='settings') loadSettings();
+  if(sec==='settings') {
+    loadSettings();       // loads org/name/email + alerts
+    loadCurrencySetting(); // re-syncs currency dropdown AFTER it becomes visible
+  }
   if(sec==='repairs') renderRepairsDashboard();
   if(sec==='import'){const n=document.getElementById('import-plan-notice');if(n)n.style.display=!planHas('csvImport')?'block':'none';}
   if(sec==='add') { initPlateScanner(); }
@@ -2632,9 +2635,20 @@ async function saveSettings(){if(gate('','settings'))return;
   session.org=org;session.name=name;setStore('fy_session',session);
   document.getElementById('s-org-name').textContent=org;
   document.getElementById('u-name').textContent=name;
-  // Save currency
+  // Save currency — read from dropdown only if it shows a non-USD value,
+  // otherwise fall back to what's already in localStorage (prevents silent USD revert
+  // when the dropdown was never rendered/opened by the user this session)
   const curSel = document.getElementById('set-currency');
-  if (curSel && curSel.value) setAccountCurrency(curSel.value);
+  if (curSel && curSel.value) {
+    const existing = getAccountCurrency();
+    // Only overwrite if the dropdown value differs from USD, OR if user is on USD
+    // and has deliberately left it there (existing.code is also USD)
+    const selCode = curSel.value.split('|')[0];
+    if (selCode !== 'USD' || existing.code === 'USD') {
+      setAccountCurrency(curSel.value);
+    }
+    // If dropdown shows USD but existing preference is EUR etc., don't overwrite
+  }
   toast('Settings saved.');
 }
 async function clearAllData(){if(confirm('Delete ALL fleet data for this account? This cannot be undone.')){if(isSupabaseReady()&&session?.accountId){try{await sb.from('vehicles').delete().eq('account_id',session.accountId);}catch(e){console.warn(e)}}setStore('fy_fleet_'+session?.accountId,[]);_fleetCache=null;toast('All fleet data deleted.');await renderDashboard();}}
@@ -3617,8 +3631,8 @@ function renderServiceTable(services, fleet, now) {
     const intervalLabel = {90:'3 months',180:'6 months',365:'12 months',730:'2 years'}[s.intervalDays]||s.intervalDays+'d';
     return `<tr>
       <td><strong>${s.vehicleModel}</strong></td>
-      <td class="td-muted">${s.lastDate||'—'}</td>
-      <td class="td-muted">${s.nextDate||'—'}</td>
+      <td class="td-muted">${fmtDate(s.lastDate)}</td>
+      <td class="td-muted">${fmtDate(s.nextDate)}</td>
       <td class="td-muted">${intervalLabel}</td>
       <td>${statusHtml}</td>
       <td><button onclick="deleteServiceRecord(${s.vehicleId})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:14px;padding:4px 6px">✕</button></td>
@@ -4270,7 +4284,7 @@ async function renderSchedRepairs() {
     return `<tr>
       <td><strong>${r.vehicleModel}</strong></td>
       <td><span class="repair-cat ${catClass[r.category]||'cat-other'}">${r.category}</span></td>
-      <td class="td-muted">${r.scheduledDate}</td>
+      <td class="td-muted">${fmtDate(r.scheduledDate)}</td>
       <td class="td-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
       <td class="td-muted">${r.estimatedCost ? '$'+r.estimatedCost.toLocaleString() : '—'}</td>
       <td>${statusPill}</td>
