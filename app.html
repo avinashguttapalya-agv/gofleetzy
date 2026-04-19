@@ -601,6 +601,35 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div id="sec-fleet" style="display:none">
         <div class="card">
           <div class="card-header"><div class="card-title">All Vehicles</div><button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add</button></div>
+          <!-- FILTER BAR -->
+          <div style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--mist)">
+            <input id="fleet-search" class="form-input" type="text" placeholder="🔍 Search model, brand, dept…" style="flex:2;min-width:180px;max-width:300px" oninput="renderTable()"/>
+            <select id="fleet-filter-fuel" class="form-select" style="flex:1;min-width:130px" onchange="renderTable()">
+              <option value="">All Fuel Types</option>
+              <option value="diesel">⛽ Diesel</option>
+              <option value="gasoline">⛽ Petrol</option>
+              <option value="hybrid">🔋 Hybrid</option>
+              <option value="phev">🔋 PHEV</option>
+              <option value="bev">⚡ Full Electric</option>
+            </select>
+            <select id="fleet-filter-status" class="form-select" style="flex:1;min-width:130px" onchange="renderTable()">
+              <option value="">All Statuses</option>
+              <option value="replace">🔴 Replace Now</option>
+              <option value="watch">🟡 Watch Zone</option>
+              <option value="good">🟢 Good</option>
+            </select>
+            <select id="fleet-filter-dept" class="form-select" style="flex:1;min-width:130px" onchange="renderTable()">
+              <option value="">All Departments</option>
+            </select>
+            <select id="fleet-filter-year" class="form-select" style="flex:1;min-width:120px" onchange="renderTable()">
+              <option value="">All Years</option>
+              <option value="new">2022 and newer</option>
+              <option value="mid">2018 – 2021</option>
+              <option value="old">Before 2018</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearFleetFilters()" title="Clear filters" style="white-space:nowrap">✕ Clear</button>
+          </div>
+          <div id="fleet-count-bar" style="padding:6px 18px;font-size:12px;color:var(--stone);display:none"></div>
           <div class="card-body" style="padding:0">
             <div class="table-wrap">
               <table>
@@ -689,7 +718,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div class="section-rule">🛡️ Insurance ★</div>
               <div class="form-group"><label class="form-label">Annual Insurance ($) ★ <span class="form-hint">affects scoring</span></label><input class="form-input" id="f-insurance" type="number" placeholder="e.g. 1800" oninput="toggleEVFields()"/></div>
               <div class="form-group"><label class="form-label">Insurance Provider</label><input class="form-input" id="f-insurer" placeholder="e.g. Zurich Fleet"/></div>
-              <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="date"/></div>
+              <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="text" placeholder="e.g. 31/12/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
               <div class="section-rule">Organisation</div>
               <div class="form-group"><label class="form-label">Department / Driver</label><input class="form-input" id="f-dept" placeholder="e.g. Sales Team A"/></div>
               <div class="form-group"><label class="form-label">Expected Annual km ★</label><input class="form-input" id="f-expected" type="number" placeholder="e.g. 25000 (target)"/></div>
@@ -1042,7 +1071,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                     </div>
                     <div class="form-group" style="margin:0">
                       <label class="form-label">Date</label>
-                      <input class="form-input" id="se-date" type="date"/>
+                      <input class="form-input" id="se-date" type="text" placeholder="e.g. 15/06/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/>
                     </div>
                     <div class="form-group" style="margin:0">
                       <label class="form-label">Total Cost (in invoice currency)</label>
@@ -1441,7 +1470,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           <option value="Other">Other</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Scheduled Date</label><input class="form-input" id="sched-date" type="date"/></div>
+      <div class="form-group"><label class="form-label">Scheduled Date</label><input class="form-input" id="sched-date" type="text" placeholder="e.g. 30/09/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
       <div class="form-group"><label class="form-label">Notes / Description</label><input class="form-input" id="sched-notes" placeholder="e.g. Replace brake pads, full service"/></div>
       <div class="form-group"><label class="form-label">Estimated Cost (optional)</label><input class="form-input" id="sched-cost" type="number" min="0" placeholder="0"/></div>
     </div>
@@ -1460,7 +1489,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div class="form-group"><label class="form-label">Vehicle</label>
         <select class="form-select" id="svc-vehicle-select"><option value="">Select vehicle...</option></select>
       </div>
-      <div class="form-group"><label class="form-label">Last Service Date</label><input class="form-input" id="svc-last-date" type="date"/></div>
+      <div class="form-group"><label class="form-label">Last Service Date</label><input class="form-input" id="svc-last-date" type="text" placeholder="e.g. 01/03/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
       <div class="form-group"><label class="form-label">Service Interval</label>
         <select class="form-select" id="svc-interval">
           <option value="90">Every 3 months</option>
@@ -2446,12 +2475,67 @@ async function renderRecs(containerId, maxCount) {
   }).join('');
 }
 
+function clearFleetFilters() {
+  ['fleet-search','fleet-filter-fuel','fleet-filter-status','fleet-filter-dept','fleet-filter-year']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  renderTable();
+}
+
 async function renderTable() {
   const tbody = document.getElementById('fleet-tbody');
   const fleet = await getFleet();
+
+  // Populate dept dropdown dynamically from actual fleet data
+  const deptSel = document.getElementById('fleet-filter-dept');
+  if (deptSel) {
+    const depts = [...new Set(fleet.map(v=>v.dept).filter(Boolean))].sort();
+    const cur = deptSel.value;
+    deptSel.innerHTML = '<option value="">All Departments</option>' +
+      depts.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d}</option>`).join('');
+  }
+
   if(!fleet.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--stone)">No vehicles yet.</td></tr>';return;}
   const scored = fleet.map(v=>({v,...score(v)})).sort((a,b)=>b.score-a.score);
-  tbody.innerHTML = scored.map(({v,score:s,underutil,cpmVal}) => {
+
+  // Read filters
+  const search    = (document.getElementById('fleet-search')?.value||'').toLowerCase().trim();
+  const fuel      = document.getElementById('fleet-filter-fuel')?.value||'';
+  const status    = document.getElementById('fleet-filter-status')?.value||'';
+  const dept      = document.getElementById('fleet-filter-dept')?.value||'';
+  const yearBand  = document.getElementById('fleet-filter-year')?.value||'';
+
+  const CY = new Date().getFullYear();
+  const filtered = scored.filter(({v, score:s}) => {
+    if (search && !`${v.model} ${v.brand} ${v.dept||''}`.toLowerCase().includes(search)) return false;
+    if (fuel && v.fueltype !== fuel) return false;
+    if (status === 'replace' && s < 65) return false;
+    if (status === 'watch'   && (s < 40 || s >= 65)) return false;
+    if (status === 'good'    && s >= 40) return false;
+    if (dept && v.dept !== dept) return false;
+    if (yearBand === 'new' && parseInt(v.year) < 2022) return false;
+    if (yearBand === 'mid' && (parseInt(v.year) < 2018 || parseInt(v.year) > 2021)) return false;
+    if (yearBand === 'old' && parseInt(v.year) >= 2018) return false;
+    return true;
+  });
+
+  // Count bar
+  const countBar = document.getElementById('fleet-count-bar');
+  const hasFilter = search||fuel||status||dept||yearBand;
+  if (countBar) {
+    if (hasFilter) {
+      countBar.textContent = `Showing ${filtered.length} of ${scored.length} vehicles`;
+      countBar.style.display = 'block';
+    } else {
+      countBar.style.display = 'none';
+    }
+  }
+
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--stone)">No vehicles match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(({v,score:s,underutil,cpmVal}) => {
     const pc=pillClass(s),fc=fillColor(s),brPts=BRAND_RELIABILITY[v.brand]??3;
     return `<tr>
       <td><strong>${v.model}</strong>${v.dept?`<div class="td-muted">${v.dept}</div>`:''}${underutil?`<div style="font-size:11px;color:var(--yellow);font-weight:600">⚠ Underutilized</div>`:''}</td>
@@ -2515,7 +2599,7 @@ async function addVehicle() {
     expected:document.getElementById('f-expected').value,
     insurance:document.getElementById('f-insurance').value,
     insurer:document.getElementById('f-insurer').value.trim(),
-    insRenewal:document.getElementById('f-ins-renewal').value,
+    insRenewal:getDateInput('f-ins-renewal'),
     batteryKwh:document.getElementById('f-battery-kwh').value,
     batteryHealth:document.getElementById('f-battery-health').value,
     chargeType:document.getElementById('f-charge-type').value,
@@ -3309,14 +3393,14 @@ function openAddServiceModal() {
     const sel = document.getElementById('svc-vehicle-select');
     sel.innerHTML = '<option value="">Select vehicle...</option>' +
       fleet.map(v=>`<option value="${v.id}">${v.model} (${v.year})</option>`).join('');
-    document.getElementById('svc-last-date').value = new Date().toISOString().split('T')[0];
+    setDateInput('svc-last-date', new Date().toISOString().split('T')[0]);
   });
   openModal('modal-service');
 }
 
 async function saveServiceRecord() {
   const vid = document.getElementById('svc-vehicle-select').value;
-  const lastDate = document.getElementById('svc-last-date').value;
+  const lastDate = getDateInput('svc-last-date');
   const interval = parseInt(document.getElementById('svc-interval').value) || 365;
   const notes = document.getElementById('svc-notes').value.trim();
   if (!vid || !lastDate) { toast('Please select a vehicle and last service date.'); return; }
@@ -4490,7 +4574,7 @@ function toggleScanEdit() {
     const acct = getAccountCurrency();
 
     document.getElementById('se-vehicle').value = d.vehicle || '';
-    document.getElementById('se-date').value = d.date || new Date().toISOString().split('T')[0];
+    setDateInput('se-date', d.date || new Date().toISOString().split('T')[0]);
     document.getElementById('se-cost').value = d.total_cost || 0;
     document.getElementById('se-category').value = d.category || 'Service';
     document.getElementById('se-notes').value = d.notes || '';
@@ -4689,13 +4773,29 @@ async function renderEVInsurance() {
   // ── Live EV vs ICE cost comparison ────────────────────────────────
   const sym = getAccountCurrency().symbol;
   const bevFleet = fleet.filter(v => v.fueltype==='bev');
+  // ICE: includes diesel, gasoline, hybrid (excludes BEV and PHEV)
   const iceFleet = fleet.filter(v => v.fueltype!=='bev' && v.fueltype!=='phev');
 
-  // CPM = (maint + fuelcost) / annual_km  — only for vehicles with enough data
+  // CPM = (maint + fuelcost) / annual_km
+  // For BEV: fuelcost is 0 (no petrol), so we only require maint > 0 and annual > 0.
+  // For ICE/hybrid: require maint+fuelcost > 0 and annual > 0.
   function fleetAvgCPM(vehicles) {
-    const valid = vehicles.filter(v => parseFloat(v.annual)>0 && (parseFloat(v.maint)||0)+(parseFloat(v.fuelcost)||0)>0);
+    const valid = vehicles.filter(v => {
+      const ann   = parseFloat(v.annual) || 0;
+      const maint = parseFloat(v.maint)  || 0;
+      const fuel  = parseFloat(v.fuelcost) || 0;
+      const isBEV = v.fueltype === 'bev';
+      if (ann <= 0) return false;
+      if (isBEV) return maint > 0;  // BEV: electricity cost may be 0, need at least maint
+      return (maint + fuel) > 0;
+    });
     if (!valid.length) return null;
-    const cpms = valid.map(v => (parseFloat(v.maint||0)+parseFloat(v.fuelcost||0)) / parseFloat(v.annual));
+    const cpms = valid.map(v => {
+      const maint = parseFloat(v.maint||0);
+      const fuel  = parseFloat(v.fuelcost||0);
+      const ann   = parseFloat(v.annual);
+      return (maint + fuel) / ann;
+    });
     return cpms.reduce((a,b)=>a+b,0) / cpms.length;
   }
 
@@ -4787,6 +4887,52 @@ async function renderEVInsurance() {
 }
 
 
+
+// ─── Date input helpers ──────────────────────────────────────────────────────
+// Browser <input type="date"> always shows in browser locale (often MM/DD/YYYY).
+// We replace them with text inputs and handle EU↔ISO conversion manually.
+function setDateInput(id, isoVal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = isoToEU(isoVal);
+}
+function getDateInput(id) {
+  const el = document.getElementById(id);
+  if (!el || !el.value) return '';
+  return euToISO(el.value);
+}
+function isoToEU(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return iso;
+  return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+}
+function euToISO(eu) {
+  if (!eu) return '';
+  // Accept DD/MM/YYYY or DD-MM-YYYY or YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(eu)) return eu; // already ISO
+  const parts = eu.split(/[\/-]/);
+  if (parts.length !== 3) return eu;
+  if (parts[0].length === 4) return eu; // YYYY-MM-DD
+  return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+}
+function validateDateInput(el) {
+  const v = el.value;
+  if (!v) return;
+  // Allow typing — only validate when looks complete
+  if (v.length >= 8) {
+    const iso = euToISO(v);
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) {
+      el.style.borderColor = 'var(--red)';
+      el.title = 'Enter date as DD/MM/YYYY';
+    } else {
+      el.style.borderColor = '';
+      el.title = '';
+    }
+  }
+}
+
 // ─── Date formatting ───────────────────────────────────────────────
 // Storage always uses ISO (YYYY-MM-DD). Display uses EU format (DD/MM/YYYY).
 function fmtDate(isoStr) {
@@ -4819,13 +4965,9 @@ function fmtDateShort(isoStr) {
     const sbSetup = document.getElementById('auth-sb-setup');
     if (!diagEl || !diagText) return;
     if (isSupabaseReady()) {
-      const url = getStore('fy_sb_url') || SB_URL || '';
-      const proj = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || '?';
-      diagText.innerHTML = '✅ Supabase connected · Project: <strong>' + proj + '</strong>';
-      diagEl.style.color = 'var(--green)';
-      diagEl.style.background = 'var(--green-bg)';
+      // Connected — no need to show anything on the login screen
+      if (diagEl) diagEl.style.display = 'none';
       if (sbSetup) sbSetup.style.display = 'none';
-      diagEl.style.display = 'block';
     } else {
       const hasPlaceholders = (SB_URL === 'YOUR_SUPABASE_URL' || SB_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY');
       if (hasPlaceholders) {
