@@ -4699,6 +4699,42 @@ function switchImportTab(tab) {
   }
 }
 
+// Normalise a column header string → app field name
+function normaliseHeader(h) {
+  return String(h||'').trim().toLowerCase()
+    .replace(/[()€$£%]/g, '')          // strip currency/special chars
+    .replace(/[^a-z0-9]+/g, '_')       // spaces/slashes → underscore
+    .replace(/_+/g, '_')               // collapse repeated underscores
+    .replace(/^_|_$/g, '')             // trim leading/trailing underscores
+    // Map display names → app field names
+    .replace(/^make.*model.*$|^model.*make/, 'model')
+    .replace(/^annual_km$|^annual_kilomet|^km_per_year|^yearly_km/, 'annual')
+    .replace(/^maintenance_cost$|^maint_cost$|^maintenance$|^service_cost/, 'maint')
+    .replace(/^vehicle_value$|^current_value$|^market_value/, 'value')
+    .replace(/^fuel_cost$|^fuel_energy_cost$|^energy_cost$|^annual_fuel/, 'fuelcost')
+    .replace(/^repair_count$|^repairs_12mo$|^number_of_repairs/, 'repairs')
+    .replace(/^downtime_days$|^downtime_days_yr$|^days_off_road/, 'downtime')
+    .replace(/^expected_km$|^lifecycle_km$|^planned_km/, 'expected')
+    .replace(/^department$|^dept$|^fleet_group$|^cost_centre/, 'dept')
+    .replace(/^fuel_type$|^fueltype$|^vehicle_type$|^powertrain/, 'fueltype')
+    .replace(/^annual_insurance$|^insurance_cost$|^insurance_premium/, 'insurance')
+    .replace(/^battery_kwh$|^battery_capacity_kwh$|^battery_cap/, 'batteryKwh')
+    .replace(/^battery_health$|^battery_soh$|^state_of_health/, 'batteryHealth')
+    .replace(/^charge_type$|^charging_type$|^charger_type/, 'chargeType');
+}
+
+// Normalise fueltype display values → app codes
+function normaliseFueltype(val) {
+  if (!val) return '';
+  const v = String(val).trim().toLowerCase();
+  if (v === 'bev' || v === 'full electric' || v === 'electric' || v === 'ev' || v === 'fully electric') return 'bev';
+  if (v === 'phev' || v === 'plug-in hybrid' || v === 'plug in hybrid') return 'phev';
+  if (v === 'hybrid' || v === 'hev' || v === 'mild hybrid') return 'hybrid';
+  if (v === 'diesel') return 'diesel';
+  if (v === 'gasoline' || v === 'petrol' || v === 'gas') return 'gasoline';
+  return v; // pass through unknown values
+}
+
 function handleXLSXFile(file) {
   if (!file) return;
   if (typeof XLSX === 'undefined') { toast('Excel library not loaded — please refresh and try again.'); return; }
@@ -4706,57 +4742,97 @@ function handleXLSXFile(file) {
   reader.onload = e => {
     try {
       const wb = XLSX.read(e.target.result, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]]; // first sheet
-      const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (!raw.length) { toast('Excel sheet appears empty.'); return; }
 
-      // Normalise column headers (same as CSV import)
-      const normalise = h => String(h||'').trim().toLowerCase()
-        .replace(/[^a-z0-9_]/g,'_')
-        .replace(/annual_km/,'annual').replace(/maintenance_cost/,'maint')
-        .replace(/maint\.?\s*cost/,'maint').replace(/vehicle_value/,'value')
-        .replace(/fuel_cost/,'fuelcost').replace(/repair_count/,'repairs')
-        .replace(/downtime_days/,'downtime').replace(/expected_km/,'expected')
-        .replace(/department/,'dept').replace(/fuel_type/,'fueltype')
-        .replace(/insurance_cost/,'insurance').replace(/annual_insurance/,'insurance')
-        .replace(/battery_kwh/,'batteryKwh').replace(/battery_capacity/,'batteryKwh')
-        .replace(/battery_health/,'batteryHealth')
-        .replace(/charge_type/,'chargeType');
+      // Use the first sheet that contains vehicle data
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+
+      // Detect the header row: scan rows 1–8 for a row that contains 'model'
+      // This handles our Excel template (headers on row 4) and simple files (row 1)
+      let headerRowIndex = 0; // 0-based index in sheet_to_json
+      let raw = [];
+
+      // Try reading with different header row offsets
+      for (let skip = 0; skip <= 6; skip++) {
+        const attempt = XLSX.utils.sheet_to_json(ws, { defval: '', range: skip });
+        if (!attempt.length) continue;
+        // Check if any key in the first row normalises to 'model'
+        const keys = Object.keys(attempt[0]);
+        const hasModel = keys.some(k => {
+          const n = normaliseHeader(k);
+          return n === 'model' || n === 'make_model' || k.toLowerCase().includes('model');
+        });
+        if (hasModel) {
+          raw = attempt;
+          headerRowIndex = skip;
+          break;
+        }
+      }
+
+      if (!raw.length) { toast('Could not find column headers. Make sure your file has a "model" column.'); return; }
 
       csvParsed = [];
       const errors = [];
       raw.slice(0, 500).forEach((row, i) => {
         const norm = {};
-        Object.entries(row).forEach(([k,v]) => { norm[normalise(k)] = v; });
-        if (!norm.model || !norm.year) { errors.push(`Row ${i+2}: missing model or year`); return; }
+        Object.entries(row).forEach(([k, v]) => {
+          const key = normaliseHeader(k);
+          // Convert numbers to strings for consistency with manual entry
+          norm[key] = (v === null || v === undefined) ? '' : String(v);
+        });
+
+        // Normalise fueltype to app codes
+        if (norm.fueltype) norm.fueltype = normaliseFueltype(norm.fueltype);
+
+        // Skip rows with no model
+        if (!norm.model || norm.model.trim() === '') {
+          if (i < 3) return; // skip extra header/blank rows silently
+          errors.push('Row ' + (i + headerRowIndex + 2) + ': missing model');
+          return;
+        }
+        if (!norm.year) { errors.push('Row ' + (i + headerRowIndex + 2) + ': missing year'); return; }
+
+        // Assign a unique id
         norm.id = Date.now() + i;
         csvParsed.push(norm);
       });
 
-      if (!csvParsed.length) { toast('No valid rows found. Check your column headers.'); return; }
+      if (!csvParsed.length) {
+        toast('No valid vehicle rows found. Check that your file has model, year, and mileage columns.');
+        return;
+      }
 
-      // Re-use the CSV preview renderer
+      // Show preview
       const preview = document.getElementById('csv-preview');
       const thead = document.querySelector('#csv-preview-table thead');
       const tbody = document.querySelector('#csv-preview-table tbody');
       preview.style.display = 'block';
       const sym = getAccountCurrency().symbol;
       document.getElementById('csv-preview-title').textContent =
-        `Preview — ${csvParsed.length} vehicles found${errors.length?' ('+errors.length+' skipped)':''}`;
+        `Preview — ${csvParsed.length} vehicles found${errors.length ? ' (' + errors.length + ' rows skipped)' : ''}`;
 
-      thead.innerHTML = '<tr><th>Model</th><th>Brand</th><th>Year</th><th>Mileage</th><th>Maint</th><th>Downtime</th></tr>';
-      tbody.innerHTML = csvParsed.slice(0,8).map(r =>
-        `<tr><td>${r.model}</td><td>${r.brand||'—'}</td><td>${r.year}</td>
-         <td>${r.mileage?parseInt(r.mileage).toLocaleString()+' km':'—'}</td>
-         <td>${r.maint?sym+parseInt(r.maint).toLocaleString():'—'}</td>
-         <td>${r.downtime||'—'} days</td></tr>`
+      thead.innerHTML = '<tr><th>Model</th><th>Year</th><th>Fuel Type</th><th>Mileage</th><th>Maint/yr</th><th>Annual km</th></tr>';
+      tbody.innerHTML = csvParsed.slice(0, 8).map(r =>
+        `<tr>
+          <td><strong>${r.model}</strong>${r.brand ? ' <span style="color:var(--stone)">('+r.brand+')</span>' : ''}</td>
+          <td>${r.year}</td>
+          <td>${r.fueltype || '—'}</td>
+          <td>${r.mileage ? parseInt(r.mileage).toLocaleString() + ' km' : '—'}</td>
+          <td>${r.maint ? sym + parseInt(r.maint).toLocaleString() : '—'}</td>
+          <td>${r.annual ? parseInt(r.annual).toLocaleString() + ' km' : '—'}</td>
+        </tr>`
       ).join('');
       if (csvParsed.length > 8)
-        tbody.innerHTML += `<tr><td colspan="6" style="text-align:center;color:var(--stone);font-style:italic">... and ${csvParsed.length-8} more</td></tr>`;
+        tbody.innerHTML += `<tr><td colspan="6" style="text-align:center;color:var(--stone);font-style:italic">… and ${csvParsed.length - 8} more vehicles</td></tr>`;
+      if (errors.length)
+        tbody.innerHTML += `<tr><td colspan="6" style="color:var(--yellow);font-size:12px;padding:8px">${errors.slice(0,3).join(' · ')}${errors.length>3?' · +more':''}</td></tr>`;
+
       document.getElementById('csv-status').textContent = '';
       document.getElementById('csv-import-btn').disabled = false;
-      toast(`✅ Read ${csvParsed.length} vehicles from Excel`);
+      toast('✅ Read ' + csvParsed.length + ' vehicles from Excel (header row at row ' + (headerRowIndex + 1) + ')');
+
     } catch(err) {
+      console.error('[XLSX] parse error:', err);
       toast('Excel parse error: ' + err.message);
     }
   };
