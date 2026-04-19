@@ -1489,7 +1489,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 // Example: https://fleetzy-api.onrender.com
 // Once api.gofleetzy.com CNAME + Render custom domain are configured,
 // change this to 'https://api.gofleetzy.com'
-const RENDER_URL = 'https://fleetzy-backend.onrender.com'; // ← REPLACE with your Render URL
+<!-- const RENDER_URL = 'https://fleetzy-backend.onrender.com'; // ← REPLACE with your Render URL -->
 
 const API_BASE = (function() {
   // 1. Manual override saved in Settings takes priority
@@ -1597,7 +1597,7 @@ function setStore(key,val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Anon key is safe to hardcode — it is designed to be public.
 // RLS policies protect all data. Only service_role key must stay secret.
 // Replace these with your actual Supabase project URL and anon key.
-const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co'';          // e.g. https://xxxx.supabase.co
+const SB_URL = 'https://sjtavcenvkzubcfakjcu.supabase.co';          // e.g. https://xxxx.supabase.co
 const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo'; // eyJhbGc... from Project Settings → API
 
 function initSupabase() {
@@ -1962,7 +1962,7 @@ async function doSignIn() {
     }
   } else {
     if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
-    // Check localStorage accounts as fallback (covers demo account + any local accounts)
+    // Check localStorage accounts as fallback (demo account + local accounts)
     const accounts = getAccounts();
     const acct = Object.values(accounts).find(a => a.email === email && a.password === pass);
     if (acct) {
@@ -1973,9 +1973,22 @@ async function doSignIn() {
       launchApp();
       return;
     }
-    // No local account either — tell them to connect Supabase
-    console.warn('Supabase not ready and no local account found');
-    toast('Database not connected. Open the app in your main browser (not incognito) or configure Supabase credentials.');
+    // Supabase not configured — show a clear inline error
+    const diagEl  = document.getElementById('auth-diag');
+    const diagText = document.getElementById('auth-diag-text');
+    if (diagEl && diagText) {
+      const hasPlaceholders = (SB_URL === 'YOUR_SUPABASE_URL' || SB_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY');
+      if (hasPlaceholders) {
+        diagText.innerHTML = '⚙️ <strong>Setup required:</strong> Open <code>app.html</code> in a text editor, replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your real Supabase values, then re-upload to GitHub. <br><br>Or use the <strong>Load Demo Account</strong> button to explore the app without a database.';
+      } else {
+        diagText.innerHTML = '⚠️ <strong>Database not connected.</strong> Enter your Supabase credentials below and click Save & Connect — or try opening the app outside of incognito mode.';
+        const sbSetup = document.getElementById('auth-sb-setup');
+        if (sbSetup) sbSetup.style.display = 'block';
+      }
+      diagEl.style.display = 'block';
+      diagEl.style.color = 'var(--red)';
+      diagEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     return;
   }
 
@@ -2040,9 +2053,23 @@ async function doSignUp() {
     }
   }
 
-  // Fallback: localStorage signup
+  // Supabase not configured — show inline error
+  const diagEl  = document.getElementById('auth-diag');
+  const diagText = document.getElementById('auth-diag-text');
+  if (diagEl && diagText) {
+    const hasPlaceholders = (SB_URL === 'YOUR_SUPABASE_URL' || SB_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY');
+    diagText.innerHTML = hasPlaceholders
+      ? '⚙️ <strong>Setup required:</strong> Open <code>app.html</code> in a text editor, replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your real Supabase values, then re-upload to GitHub.'
+      : '⚠️ <strong>Database not connected.</strong> Enter your Supabase credentials in the Connect Database section below.';
+    diagEl.style.display = 'block';
+    diagEl.style.color = 'var(--red)';
+    const sbSetup = document.getElementById('auth-sb-setup');
+    if (sbSetup && !hasPlaceholders) sbSetup.style.display = 'block';
+    diagEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // Also allow local fallback so developer can still test
   const accounts = getAccounts();
-  if (Object.values(accounts).find(a => a.email===email)) { toast('Email already registered.'); return; }
+  if (Object.values(accounts).find(a => a.email===email)) { toast('Email already registered locally.'); return; }
   const id = 'acct_' + Date.now();
   accounts[id] = { id, name, email, password: pass, org, plan };
   saveAccounts(accounts);
@@ -2050,7 +2077,7 @@ async function doSignUp() {
   setStore('fy_session', session);
   await saveTeam([{ id: Date.now(), name, email, role: 'admin', joined: new Date().toLocaleDateString() }]);
   launchApp();
-  toast('Welcome to Fleetzy!');
+  toast('Account created locally (no database connected).');
 }
 
 function demoLogin() {
@@ -4769,8 +4796,8 @@ function fmtDateShort(isoStr) {
 
   const params = new URLSearchParams(window.location.search);
 
-  // Show connection diagnostic on auth screen (only if auth screen is visible)
-  setTimeout(() => {
+  // Show connection diagnostic — immediately for placeholders, after 300ms otherwise
+  function showAuthDiag() {
     const authScreen = document.getElementById('auth-screen');
     if (!authScreen || authScreen.style.display === 'none') return;
     const diagEl = document.getElementById('auth-diag');
@@ -4782,11 +4809,13 @@ function fmtDateShort(isoStr) {
       const proj = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || '?';
       diagText.innerHTML = '✅ Supabase connected · Project: <strong>' + proj + '</strong>';
       diagEl.style.color = 'var(--green)';
+      diagEl.style.background = 'var(--green-bg)';
       if (sbSetup) sbSetup.style.display = 'none';
+      diagEl.style.display = 'block';
     } else {
       const hasPlaceholders = (SB_URL === 'YOUR_SUPABASE_URL' || SB_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY');
       if (hasPlaceholders) {
-        diagText.innerHTML = '⚙️ <strong>One-time setup:</strong> Open app.html in a text editor and replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your Supabase project values, then re-upload to GitHub.';
+        diagText.innerHTML = '⚙️ <strong>Database not configured yet.</strong><br>Open <code>app.html</code> in a text editor and replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your Supabase project values, then re-upload to GitHub.<br><br>Until then, use <strong>Load Demo Account</strong> to explore the app.';
         diagEl.style.color = 'var(--stone)';
         if (sbSetup) sbSetup.style.display = 'none';
       } else {
@@ -4794,9 +4823,16 @@ function fmtDateShort(isoStr) {
         diagEl.style.color = 'var(--yellow)';
         if (sbSetup) sbSetup.style.display = 'block';
       }
+      diagEl.style.display = 'block';
     }
-    diagEl.style.display = 'block';
-  }, 300);
+  }
+  // Show immediately for placeholders (no delay), with fallback setTimeout
+  const hasPlaceholders = (SB_URL === 'YOUR_SUPABASE_URL' || SB_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY');
+  if (hasPlaceholders) {
+    showAuthDiag();
+  } else {
+    setTimeout(showAuthDiag, 300);
+  }
 
   // Step 2: check for live Supabase session (user already logged in on another tab/device)
   if (isSupabaseReady()) {
