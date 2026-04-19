@@ -718,7 +718,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div class="section-rule">🛡️ Insurance ★</div>
               <div class="form-group"><label class="form-label">Annual Insurance ($) ★ <span class="form-hint">affects scoring</span></label><input class="form-input" id="f-insurance" type="number" placeholder="e.g. 1800" oninput="toggleEVFields()"/></div>
               <div class="form-group"><label class="form-label">Insurance Provider</label><input class="form-input" id="f-insurer" placeholder="e.g. Zurich Fleet"/></div>
-              <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="text" placeholder="e.g. 31/12/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
+              <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="text" placeholder="e.g. 31/12/2026" maxlength="10" oninput="onDateInput(this)" onblur="validateDateInput(this)" autocomplete="off"/></div>
               <div class="section-rule">Organisation</div>
               <div class="form-group"><label class="form-label">Department / Driver</label><input class="form-input" id="f-dept" placeholder="e.g. Sales Team A"/></div>
               <div class="form-group"><label class="form-label">Expected Annual km ★</label><input class="form-input" id="f-expected" type="number" placeholder="e.g. 25000 (target)"/></div>
@@ -1071,7 +1071,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                     </div>
                     <div class="form-group" style="margin:0">
                       <label class="form-label">Date</label>
-                      <input class="form-input" id="se-date" type="text" placeholder="e.g. 15/06/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/>
+                      <input class="form-input" id="se-date" type="text" placeholder="e.g. 15/06/2026" maxlength="10" oninput="onDateInput(this)" onblur="validateDateInput(this)" autocomplete="off"/>
                     </div>
                     <div class="form-group" style="margin:0">
                       <label class="form-label">Total Cost (in invoice currency)</label>
@@ -1470,7 +1470,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           <option value="Other">Other</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Scheduled Date</label><input class="form-input" id="sched-date" type="text" placeholder="e.g. 30/09/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
+      <div class="form-group"><label class="form-label">Scheduled Date</label><input class="form-input" id="sched-date" type="text" placeholder="e.g. 30/09/2026" maxlength="10" oninput="onDateInput(this)" onblur="validateDateInput(this)" autocomplete="off"/></div>
       <div class="form-group"><label class="form-label">Notes / Description</label><input class="form-input" id="sched-notes" placeholder="e.g. Replace brake pads, full service"/></div>
       <div class="form-group"><label class="form-label">Estimated Cost (optional)</label><input class="form-input" id="sched-cost" type="number" min="0" placeholder="0"/></div>
     </div>
@@ -1489,7 +1489,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div class="form-group"><label class="form-label">Vehicle</label>
         <select class="form-select" id="svc-vehicle-select"><option value="">Select vehicle...</option></select>
       </div>
-      <div class="form-group"><label class="form-label">Last Service Date</label><input class="form-input" id="svc-last-date" type="text" placeholder="e.g. 01/03/2026" maxlength="10" oninput="validateDateInput(this)" autocomplete="off"/></div>
+      <div class="form-group"><label class="form-label">Last Service Date</label><input class="form-input" id="svc-last-date" type="text" placeholder="e.g. 01/03/2026" maxlength="10" oninput="onDateInput(this)" onblur="validateDateInput(this)" autocomplete="off"/></div>
       <div class="form-group"><label class="form-label">Service Interval</label>
         <select class="form-select" id="svc-interval">
           <option value="90">Every 3 months</option>
@@ -1683,44 +1683,89 @@ async function saveSupabaseConfig() {
 // ── DATA ACCESS — Supabase-first, localStorage fallback ──────────
 async function getFleet() {
   if (_fleetCache) return _fleetCache;
+
+  // Always load local data as our baseline (never empty the UI)
+  const local  = getStore('fy_fleet_' + (session?.accountId||'')) || [];
+  const queued = getStore(WQ_KEY()) || [];
+  const qIds   = new Set(queued.map(v => String(v.id)));
+  const localMerged = [...queued, ...local.filter(v => !qIds.has(String(v.id)))];
+
   if (isSupabaseReady() && session?.accountId) {
     try {
-      // No ORDER BY — avoids failing if created_at column doesn't exist
       const { data, error } = await sb.from('vehicles').select('*').eq('account_id', session.accountId);
       if (error) throw error;
-      // Merge with any locally-queued vehicles not yet synced
-      const queued  = getStore(WQ_KEY()) || [];
-      const sbIds   = new Set((data||[]).map(r => String(r.id)));
-      const pending = queued.filter(v => !sbIds.has(String(v.id)));
-      _fleetCache   = [...(data||[]).map(fromSupabaseVehicle), ...pending];
+      const sbData = (data||[]).map(fromSupabaseVehicle);
+
+      if (sbData.length > 0) {
+        // Supabase has data — use it, plus any locally queued vehicles not yet synced
+        const sbIds   = new Set(sbData.map(r => String(r.id)));
+        const pending = queued.filter(v => !sbIds.has(String(v.id)));
+        _fleetCache   = [...sbData, ...pending];
+      } else if (localMerged.length > 0) {
+        // Supabase returned empty but localStorage has data.
+        // This can happen after first import if Supabase upsert had column errors.
+        // Show local data and attempt to sync it up to Supabase.
+        console.warn('[getFleet] Supabase empty but localStorage has', localMerged.length, 'vehicles — showing local, queuing sync');
+        _fleetCache = localMerged;
+        // Queue all local vehicles for Supabase sync
+        localMerged.forEach(v => enqueueVehicle(v));
+        // Trigger sync in background
+        setTimeout(() => syncPendingVehicles(), 500);
+      } else {
+        _fleetCache = [];
+      }
       return _fleetCache;
-    } catch(e) { console.warn('Supabase getFleet failed, using localStorage:', e.message); }
+    } catch(e) {
+      console.warn('[getFleet] Supabase failed, using localStorage:', e.message);
+    }
   }
-  // No Supabase — use localStorage + queue together
-  const local   = getStore('fy_fleet_'+session?.accountId) || [];
-  const queued  = getStore(WQ_KEY()) || [];
-  const qIds    = new Set(queued.map(v => String(v.id)));
-  // Avoid duplication: local may already contain queued vehicles
-  const merged  = [...queued, ...local.filter(v => !qIds.has(String(v.id)))];
-  _fleetCache   = merged;
+
+  _fleetCache = localMerged;
   return _fleetCache;
 }
 
 async function saveFleet(f) {
-  _fleetCache = f;
   if (!session?.accountId) return;
+
+  // Ensure every vehicle has a unique id (imported records may lack one)
+  const timestampBase = Date.now();
+  f = f.map((v, i) => v.id ? v : { ...v, id: timestampBase + i });
+
+  // Always mirror to localStorage — this is the reliable fallback
+  // that survives Supabase errors, cold starts, and RLS failures
+  setStore('fy_fleet_' + session.accountId, f);
+  _fleetCache = f; // update cache immediately so UI shows data now
+
   if (isSupabaseReady()) {
-    // We handle saves individually via addVehicle/deleteVehicle
-    // This is a batch fallback for CSV import
     try {
-      const rows = f.map(v => ({...v, account_id: session.accountId}));
-      // Upsert by id
-      const { error } = await sb.from('vehicles').upsert(rows, {onConflict:'id'});
-      if (error) throw error;
-      return;
-    } catch(e) { console.warn('Supabase batch save failed:', e.message); }
+      // Use the proper snake_case mapper so Supabase gets correct column names
+      const rows = f.map(v => toSupabaseVehicle(v, session.accountId));
+      const { error } = await sb.from('vehicles').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        // Extended columns may be missing — retry with core fields only
+        if (error.code === '42703' || error.message?.includes('column')) {
+          console.warn('[saveFleet] Extended columns missing, retrying core only');
+          const coreRows = f.map(v => ({
+            id: v.id, account_id: session.accountId,
+            model: v.model||null, year: v.year||null, mileage: v.mileage||null,
+            brand: v.brand||null, fueltype: v.fueltype||null, annual: v.annual||null,
+            maint: v.maint||null, value: v.value||null, fuelcost: v.fuelcost||null,
+            repairs: v.repairs||null, downtime: v.downtime||null,
+            condition: v.condition||null, dept: v.dept||null, expected: v.expected||null
+          }));
+          const { error: e2 } = await sb.from('vehicles').upsert(coreRows, { onConflict: 'id' });
+          if (e2) console.warn('[saveFleet] Core retry also failed:', e2.message);
+        } else {
+          console.warn('[saveFleet] Supabase upsert error:', error.message);
+        }
+      }
+      // Whether Supabase succeeded or not, localStorage has the data — user is safe
+    } catch(e) {
+      console.warn('[saveFleet] Supabase batch save failed:', e.message);
+    }
   }
-  setStore('fy_fleet_'+session.accountId, f);
+  // Force next getFleet() to re-read (merges Supabase + local correctly)
+  _fleetCache = null;
 }
 
 // ─── Vehicle row helper: maps JS camelCase → Supabase snake_case ─────────────
@@ -3096,8 +3141,12 @@ async function confirmCSVImport() {
   document.getElementById('csv-import-btn').disabled = true;
   csvParsed = [];
   updateSidebar();
-  toast(`${toAdd.length} vehicles imported successfully!`);
-  setTimeout(() => nav('fleet'), 1500);
+  toast(`✅ ${toAdd.length} vehicles imported successfully!`);
+  // Wait for cache to clear then navigate — ensures fleet table reads fresh data
+  setTimeout(async () => {
+    _fleetCache = null;
+    await nav('fleet');
+  }, 800);
 }
 
 function clearCSV() {
@@ -4891,46 +4940,101 @@ async function renderEVInsurance() {
 // ─── Date input helpers ──────────────────────────────────────────────────────
 // Browser <input type="date"> always shows in browser locale (often MM/DD/YYYY).
 // We replace them with text inputs and handle EU↔ISO conversion manually.
+// ─── Date input helpers ─────────────────────────────────────────────────────
+// All date inputs are text fields. Format: DD/MM/YYYY (European).
+// Storage always uses ISO YYYY-MM-DD for correct sorting and arithmetic.
+
 function setDateInput(id, isoVal) {
   const el = document.getElementById(id);
   if (!el) return;
   el.value = isoToEU(isoVal);
 }
+
 function getDateInput(id) {
   const el = document.getElementById(id);
   if (!el || !el.value) return '';
-  return euToISO(el.value);
+  const v = el.value.trim();
+  const iso = euToISO(v);
+  // Validate before returning
+  if (iso && !/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    el.style.borderColor = 'var(--red)';
+    return '';
+  }
+  return iso;
 }
+
 function isoToEU(iso) {
   if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  if (!y || !m || !d) return iso;
-  return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+  const s = String(iso).trim();
+  // Input is already ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return s; // pass through unknown formats unchanged
 }
+
 function euToISO(eu) {
   if (!eu) return '';
-  // Accept DD/MM/YYYY or DD-MM-YYYY or YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(eu)) return eu; // already ISO
-  const parts = eu.split(/[\/-]/);
-  if (parts.length !== 3) return eu;
-  if (parts[0].length === 4) return eu; // YYYY-MM-DD
-  return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+  const s = String(eu).trim();
+  // If user typed ISO format (2026-05-19) — silently convert it to EU first,
+  // then store as ISO. We do NOT accept ISO as a valid user entry — it gets
+  // converted so the field shows EU format.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    // Auto-correct: convert to EU display, but return ISO for storage
+    return s; // ISO is correct for storage — just display needs fixing
+  }
+  // Accepted EU formats: DD/MM/YYYY or DD-MM-YYYY
+  const parts = s.split(/[\/-]/);
+  if (parts.length !== 3) return '';
+  const [dd, mm, yyyy] = parts;
+  if (dd.length > 4) return ''; // probably YYYY-MM-DD with wrong separator
+  if (!dd || !mm || !yyyy || yyyy.length !== 4) return '';
+  return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
 }
-function validateDateInput(el) {
-  const v = el.value;
-  if (!v) return;
-  // Allow typing — only validate when looks complete
-  if (v.length >= 8) {
-    const iso = euToISO(v);
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) {
-      el.style.borderColor = 'var(--red)';
-      el.title = 'Enter date as DD/MM/YYYY';
-    } else {
-      el.style.borderColor = '';
-      el.title = '';
+
+function onDateInput(el) {
+  let v = el.value;
+  // If user is typing ISO format (starts with 4 digits then -), auto-correct to EU
+  if (/^\d{4}/.test(v) && v.length >= 8) {
+    const isoMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      el.value = `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+      el.style.borderColor = 'var(--accent)';
+      el.title = 'Auto-corrected to DD/MM/YYYY format';
+      setTimeout(() => { el.style.borderColor=''; el.title=''; }, 2000);
+      return;
     }
   }
+  // Auto-insert slashes as user types digits
+  v = v.replace(/[^\d\/]/g, '');
+  if (v.length === 2 && !v.includes('/')) v += '/';
+  else if (v.length === 5 && v.split('/').length === 2) v += '/';
+  el.value = v;
+  validateDateInput(el);
+}
+
+function validateDateInput(el) {
+  const v = (el.value||'').trim();
+  if (!v) { el.style.borderColor = ''; el.title = ''; return true; }
+  // Reject pure ISO format entries
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    el.style.borderColor = 'var(--red)';
+    el.title = '⚠ Please use DD/MM/YYYY format (e.g. 19/05/2026)';
+    return false;
+  }
+  if (v.length >= 8) {
+    const iso = euToISO(v);
+    const d = new Date(iso + 'T00:00:00');
+    if (!iso || isNaN(d.getTime())) {
+      el.style.borderColor = 'var(--red)';
+      el.title = '⚠ Invalid date — use DD/MM/YYYY (e.g. 19/05/2026)';
+      return false;
+    }
+  }
+  el.style.borderColor = '';
+  el.title = '';
+  return true;
 }
 
 // ─── Date formatting ───────────────────────────────────────────────
