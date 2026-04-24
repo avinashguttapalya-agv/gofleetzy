@@ -528,7 +528,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           <div class="kpi-card kpi-red"><div class="kpi-icon">🔴</div><div class="kpi-label">Replace Now</div><div class="kpi-value" id="kpi-critical">0</div><div class="kpi-sub">vehicles</div></div>
           <div class="kpi-card kpi-yellow"><div class="kpi-icon">👀</div><div class="kpi-label">Watch Zone</div><div class="kpi-value" id="kpi-watch">0</div><div class="kpi-sub">vehicles</div></div>
           <div class="kpi-card kpi-blue"><div class="kpi-icon">🔧</div><div class="kpi-label">Service Due</div><div class="kpi-value" id="kpi-service">0</div><div class="kpi-sub">within 30 days</div></div>
-          <div class="kpi-card kpi-neutral"><div class="kpi-icon">💸</div><div class="kpi-label">YTD Repair Cost</div><div class="kpi-value" id="kpi-cost">$0</div><div class="kpi-sub">this year</div></div>
+          <div class="kpi-card kpi-neutral"><div class="kpi-icon">💸</div><div class="kpi-label">YTD Repair Cost</div><div class="kpi-value" id="kpi-cost">0</div><div class="kpi-sub">this year</div></div>
           <div class="kpi-card kpi-green"><div class="kpi-icon">✅</div><div class="kpi-label">Healthy</div><div class="kpi-value" id="kpi-healthy">0</div><div class="kpi-sub">no action needed</div></div>
         </div>
 
@@ -715,8 +715,32 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                   <option value="mixed">Mixed</option>
                 </select>
               </div>
+              <!-- ⚡ EV Charging Cost Estimator — shown for BEV vehicles -->
+              <div class="ev-only" id="charging-estimator-block" style="display:none;background:var(--mist);border-radius:10px;padding:14px 16px;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:8px">⚡ Charging Cost Estimator</div>
+                <div style="font-size:11px;color:var(--stone);margin-bottom:10px;line-height:1.5">EV charging is often bundled into your electricity bill. Estimate the annual cost two ways:</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--stone);text-transform:uppercase;margin-bottom:4px">Method A — Energy rate</div>
+                    <div style="display:flex;gap:4px;align-items:center">
+                      <input class="form-input" id="ev-kwh-rate" type="number" step="0.01" placeholder="€/kWh e.g. 0.25" oninput="calcChargingCost()" style="font-size:12px;padding:6px 8px"/>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;color:var(--stone);text-transform:uppercase;margin:6px 0 4px">Consumption kWh/100km</div>
+                    <input class="form-input" id="ev-consumption" type="number" step="0.1" placeholder="e.g. 18" oninput="calcChargingCost()" style="font-size:12px;padding:6px 8px"/>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--stone);text-transform:uppercase;margin-bottom:4px">Method B — Monthly bill</div>
+                    <input class="form-input" id="ev-monthly-bill" type="number" placeholder="e.g. 200 (€/month)" oninput="calcChargingCost()" style="font-size:12px;padding:6px 8px;margin-bottom:6px;width:100%"/>
+                    <div style="font-size:10px;font-weight:700;color:var(--stone);text-transform:uppercase;margin-bottom:4px">EV share of bill %</div>
+                    <input class="form-input" id="ev-bill-pct" type="number" placeholder="e.g. 35" oninput="calcChargingCost()" style="font-size:12px;padding:6px 8px;width:100%"/>
+                  </div>
+                </div>
+                <div id="ev-charging-result" style="display:none;background:#e8f5e9;border-radius:6px;padding:8px 12px;font-size:12px;color:var(--green);font-weight:600;margin-bottom:8px"></div>
+                <button type="button" onclick="applyChargingCost()" class="btn btn-ghost btn-sm">Apply to Annual Energy Cost field →</button>
+              </div>
+
               <div class="section-rule">🛡️ Insurance ★</div>
-              <div class="form-group"><label class="form-label">Annual Insurance ($) ★ <span class="form-hint">affects scoring</span></label><input class="form-input" id="f-insurance" type="number" placeholder="e.g. 1800" oninput="toggleEVFields()"/></div>
+              <div class="form-group"><label class="form-label" id="lbl-insurance">Annual Insurance ★ <span class="form-hint">affects scoring</span></label><input class="form-input" id="f-insurance" type="number" placeholder="e.g. 1800" oninput="toggleEVFields()"/></div>
               <div class="form-group"><label class="form-label">Insurance Provider</label><input class="form-input" id="f-insurer" placeholder="e.g. Zurich Fleet"/></div>
               <div class="form-group"><label class="form-label">Policy Renewal Date</label><input class="form-input" id="f-ins-renewal" type="text" placeholder="e.g. 31/12/2026" maxlength="10" oninput="onDateInput(this)" onblur="validateDateInput(this)" autocomplete="off"/></div>
               <div class="section-rule">Organisation</div>
@@ -1155,9 +1179,9 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         <!-- Metrics -->
         <div class="repairs-grid" id="repairs-metrics-row">
           <div class="repair-metric"><div class="rm-label">Total Repairs</div><div class="rm-val" id="rm-total">0</div><div class="rm-sub">all time</div></div>
-          <div class="repair-metric"><div class="rm-label">Total Spent</div><div class="rm-val" id="rm-spent">$0</div><div class="rm-sub">repair costs</div></div>
-          <div class="repair-metric"><div class="rm-label">This Year</div><div class="rm-val" id="rm-thisyear">$0</div><div class="rm-sub">YTD spend</div></div>
-          <div class="repair-metric"><div class="rm-label">Avg Per Repair</div><div class="rm-val" id="rm-avg">$0</div><div class="rm-sub">per incident</div></div>
+          <div class="repair-metric"><div class="rm-label">Total Spent</div><div class="rm-val" id="rm-spent">—</div><div class="rm-sub">repair costs</div></div>
+          <div class="repair-metric"><div class="rm-label">This Year</div><div class="rm-val" id="rm-thisyear">—</div><div class="rm-sub">YTD spend</div></div>
+          <div class="repair-metric"><div class="rm-label">Avg Per Repair</div><div class="rm-val" id="rm-avg">—</div><div class="rm-sub">per incident</div></div>
         </div>
 
         <!-- Cost by vehicle -->
@@ -1276,7 +1300,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
                 • Check battery coverage — some policies exclude gradual degradation<br>
                 • For PHEV: confirm both ICE and EV modes are covered equally<br>
                 • Ask about agreed value vs market value — EV depreciation is faster than ICE in some segments<br><br>
-                <b>Battery replacement risk flag:</b> If a BEV in your fleet is over 8 years old or has &gt;160,000 km, battery replacement cost ($8k–$20k) should factor into your replacement vs repair decision. gofleetzy flags this in the score.
+                <b>Battery replacement risk flag:</b> If a BEV in your fleet is over 8 years old or has &gt;160,000 km, battery replacement cost (€8k–€20k) should factor into your replacement vs repair decision. gofleetzy flags this in the score.
               </div>
             </div>
           </div>
@@ -1318,7 +1342,49 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
 </div><!-- /app -->
 
 <!-- BREAKDOWN MODAL -->
-<div class="overlay" id="modal-breakdown">
+<!-- REPLACEMENT DECISION MODAL -->
+  <div class="overlay" id="modal-replace-decision">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <div class="modal-title" id="rdc-title">🔴 Replace Now Threshold Reached</div>
+        <button class="modal-close" onclick="closeModal('modal-replace-decision')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--mist);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)" id="rdc-vehicle">Vehicle</div>
+          <div style="font-size:12px;color:var(--stone);margin-top:4px" id="rdc-stats"></div>
+        </div>
+        <p style="font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:0" id="rdc-message">
+          This vehicle has reached the Replace Now threshold.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+          <div style="background:var(--mist);border-radius:10px;padding:16px;cursor:pointer;border:2px solid transparent;transition:border-color .15s"
+               onclick="confirmReplaceDecision('replaced')"
+               onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='transparent'">
+            <div style="font-size:22px;text-align:center;margin-bottom:6px">✅</div>
+            <div style="font-size:13px;font-weight:700;color:var(--green);text-align:center">Mark as Replaced</div>
+            <div style="font-size:11px;color:var(--stone);text-align:center;margin-top:4px;line-height:1.4">
+              Vehicle has been replaced. Archive decision and optionally remove from fleet.
+            </div>
+          </div>
+          <div style="background:var(--mist);border-radius:10px;padding:16px;cursor:pointer;border:2px solid transparent;transition:border-color .15s"
+               onclick="confirmReplaceDecision('continue')"
+               onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='transparent'">
+            <div style="font-size:22px;text-align:center;margin-bottom:6px">⏩</div>
+            <div style="font-size:13px;font-weight:700;color:var(--yellow);text-align:center">Continue Working</div>
+            <div style="font-size:11px;color:var(--stone);text-align:center;margin-top:4px;line-height:1.4">
+              Keep vehicle running. Track days &amp; km past threshold for adaptive learning.
+            </div>
+          </div>
+        </div>
+        <div id="rdc-learning-info" style="margin-top:14px;background:var(--mist);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--stone);display:none;line-height:1.6">
+          <strong>Adaptive learning active:</strong> gofleetzy is tracking how long vehicles continue past the Replace Now threshold. Your account's effective threshold will adjust automatically based on real operational patterns.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="modal-breakdown">
   <div class="modal">
     <div class="modal-hd"><div class="modal-title" id="bd-title">Score Breakdown</div><button class="modal-close" onclick="closeModal('modal-breakdown')">✕</button></div>
     <div class="modal-body" id="bd-body"></div>
@@ -1962,17 +2028,18 @@ async function addVehicleToStore(v) {
   if (isSupabaseReady() && session?.accountId) {
     const row = toSupabaseVehicle(v, session.accountId);
     try {
-      const { error } = await sb.from('vehicles').insert(row);
+      // Use upsert so existing vehicles (e.g. KM updates) are updated not duplicated
+      const { error } = await sb.from('vehicles').upsert(row, { onConflict: 'id' });
       if (error) {
         if (error.code === '42703' || error.message?.includes('column')) {
-          // Extended columns not yet migrated — insert core fields only
+          // Extended columns not yet migrated — upsert core fields only
           const { id, account_id, model, year, mileage, brand, fueltype,
                   annual, maint, value, fuelcost, repairs, downtime,
                   condition, dept, expected } = row;
           const { error: e2 } = await sb.from('vehicles')
-            .insert({ id, account_id, model, year, mileage, brand, fueltype,
+            .upsert({ id, account_id, model, year, mileage, brand, fueltype,
                       annual, maint, value, fuelcost, repairs, downtime,
-                      condition, dept, expected });
+                      condition, dept, expected }, { onConflict: 'id' });
           if (e2) throw e2;
           console.warn('[ADD] Extended columns missing — run migration SQL.');
         } else {
@@ -2337,6 +2404,8 @@ async function signOut() {
 //   Diesel regulatory risk: EU Euro 7, UK ZEV mandate — increasing compliance cost by 2030
 //   Insurance factor: annual_insurance / vehicle_value — >8% ratio flags poor value
 
+function scoreVehicle(v) { return score(v); }
+
 function score(v) {
   let total = 0; const bd = [];
   if (!v || !v.model) return {score:0, bd:[], underutil:false, cpmVal:'—', batteryWarning:false, isBEV:false, isEV:false};
@@ -2538,7 +2607,7 @@ function nav(sec, opts) {
   if(sec==='add') { initPlateScanner(); }
   if(sec==='invoice') { syncInvoiceApiKey(); populateVehicleSelect(); }
   if(sec==='evinsurance') renderEVInsurance();
-  if(sec==='add') toggleEVFields();
+  if(sec==='add') { toggleEVFields(); updateCurrencyLabels(); }
 
   // Save current section so reload restores it
   try { localStorage.setItem('fy_last_sec', sec); } catch(e) {}
@@ -2688,7 +2757,7 @@ async function renderTable() {
       <td class="td-muted">${cpmVal}</td>
       <td class="td-muted">${v.downtime?v.downtime+' days':'—'}</td>
       <td style="font-size:12px">${BRAND_LABEL[v.brand]||'—'}<br><span style="color:${brPts<=2?'var(--green)':brPts<=4?'var(--stone)':'var(--red)'}">${BRAND_REL_LABEL[brPts]||'Avg'}</span></td>
-      <td><div class="score-wrap"><div class="score-bg"><div class="score-fill" style="width:${s}%;background:${fc}"></div></div><span class="score-num" style="color:${fc}">${s}</span></div></td>
+      <td><div class="score-wrap"><div class="score-bg"><div class="score-fill" style="width:${isNaN(s)?0:s}%;background:${fc}"></div></div><span class="score-num" style="color:${fc}">${isNaN(s)?0:s}</span></div></td>
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
       <td style="display:flex;gap:5px;padding:12px 8px;flex-wrap:wrap">
         ${s>=65?`<button onclick="showReplaceDecision(${v.id})" class="btn btn-sm" style="background:var(--red);color:#fff;font-size:10px;padding:3px 7px" title="Mark replaced or continue">⚑ Decision</button>`:''}
@@ -2800,47 +2869,45 @@ function toggleEVFields(){
   const insTip = document.getElementById('ins-tip');
   if(insTip) insTip.style.display=parseInt(document.getElementById('f-insurance')?.value||0)>0?'block':'none';
 }
-async function delVehicle(id){if(gate('','deleteVehicle'))return;const fleet=await getFleet();const v=fleet.find(x=>x.id===id);if(!v)return;deleteId=id;document.getElementById('del-name').textContent=v.model;openModal('modal-delete');}
+async function delVehicle(id){if(gate('','deleteVehicle'))return;const fleet=await getFleet();const v=fleet.find(x=>String(x.id)===String(id));if(!v)return;deleteId=id;document.getElementById('del-name').textContent=v.model;openModal('modal-delete');}
 async function confirmDelete(){await deleteVehicleFromStore(deleteId);closeModal('modal-delete');toast('Vehicle removed.');await renderTable();}
 
 // ═══════════ BREAKDOWN MODAL ═══════════
 // ─── Replacement Decision Functions ─────────────────────────────────────────
 let _decisionVehicleId = null;
 
-function showReplaceDecision(vehicleId) {
-  const decisions = getDecisions();
+async function showReplaceDecision(vehicleId) {
   _decisionVehicleId = vehicleId;
-  getFleet().then(fleet => {
-    const v = fleet.find(x => String(x.id) === String(vehicleId));
-    if (!v) return;
-    const { score: s } = score(v);
-    const threshold = getAdaptiveThreshold();
-    const stats = getContinuationStats(vehicleId, v.mileage);
-    const titleEl = document.getElementById('rdc-title');
-    const vehicleEl = document.getElementById('rdc-vehicle');
-    const statsEl = document.getElementById('rdc-stats');
-    const msgEl = document.getElementById('rdc-message');
-    const learningEl = document.getElementById('rdc-learning-info');
-    if (titleEl) titleEl.textContent = `🔴 ${v.model} — Score ${s}/100`;
-    if (vehicleEl) vehicleEl.textContent = `${v.model} (${v.year}) · ${parseInt(v.mileage||0).toLocaleString()} km`;
-    if (statsEl) {
-      const parts = [`Score: ${s}/100`, `Mileage: ${parseInt(v.mileage||0).toLocaleString()} km`];
-      if (stats) parts.push(`Already continued ${stats.continueCount}× · ${stats.daysSince} days past threshold · ${stats.kmSince.toLocaleString()} km since decision`);
-      statsEl.textContent = parts.join(' · ');
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === String(vehicleId));
+  if (!v) { toast('Vehicle not found'); return; }
+  const { score: s } = score(v);
+  const threshold = getAdaptiveThreshold();
+  const stats = getContinuationStats(vehicleId, v.mileage);
+  const titleEl   = document.getElementById('rdc-title');
+  const vehicleEl = document.getElementById('rdc-vehicle');
+  const statsEl   = document.getElementById('rdc-stats');
+  const msgEl     = document.getElementById('rdc-message');
+  const learningEl= document.getElementById('rdc-learning-info');
+  if (titleEl)   titleEl.textContent  = `🔴 ${v.model} — Score ${s}/100`;
+  if (vehicleEl) vehicleEl.textContent= `${v.model} (${v.year}) · ${parseInt(v.mileage||0).toLocaleString()} km`;
+  if (statsEl) {
+    const parts = [`Score: ${s}/100`, `Mileage: ${parseInt(v.mileage||0).toLocaleString()} km`];
+    if (stats) parts.push(`Continued ${stats.continueCount}× · ${stats.daysSince}d past threshold · ${stats.kmSince.toLocaleString()} km since decision`);
+    statsEl.textContent = parts.join(' · ');
+  }
+  if (msgEl) {
+    if (stats) {
+      msgEl.innerHTML = `This vehicle has been running <strong>${stats.daysSince} days</strong> and <strong>${stats.kmSince.toLocaleString()} km</strong> since you last chose Continue at score <strong>${stats.sinceScore}</strong>. Current score: <strong>${s}</strong>.`;
+    } else {
+      msgEl.innerHTML = `This vehicle has reached the <strong>Replace Now</strong> threshold (score ≥ ${threshold}). What would you like to do?`;
     }
-    if (msgEl) {
-      if (stats) {
-        msgEl.innerHTML = `This vehicle has been running for <strong>${stats.daysSince} days</strong> and <strong>${stats.kmSince.toLocaleString()} km</strong> since you last chose Continue Working at a score of <strong>${stats.sinceScore}</strong>. Current score is <strong>${s}</strong>. What would you like to do now?`;
-      } else {
-        msgEl.innerHTML = `This vehicle has reached the <strong>Replace Now</strong> threshold (score ≥ ${threshold}). Based on your fleet patterns, what would you like to do?`;
-      }
-    }
-    // Show learning info after 2+ previous continue decisions across fleet
-    const allContinues = Object.values(getDecisions()).flatMap(d => (d.history||[]).filter(h=>h.type==='continue'));
-    if (learningEl) learningEl.style.display = allContinues.length >= 2 ? 'block' : 'none';
-    openModal('modal-replace-decision');
-  });
+  }
+  const allContinues = Object.values(getDecisions()).flatMap(d=>(d.history||[]).filter(h=>h.type==='continue'));
+  if (learningEl) learningEl.style.display = allContinues.length >= 2 ? 'block' : 'none';
+  openModal('modal-replace-decision');
 }
+
 
 function confirmReplaceDecision(type) {
   if (!_decisionVehicleId) return;
@@ -2848,7 +2915,7 @@ function confirmReplaceDecision(type) {
   getFleet().then(fleet => {
     const v = fleet.find(x => String(x.id) === String(_decisionVehicleId));
     if (!v) return;
-    const { score: s } = score(v);
+    const s = scoreVehicle(v).score;
     if (type === 'replaced') {
       recordReplaced(_decisionVehicleId, s, v.mileage);
       toast(`✅ ${v.model} marked as replaced. It will be archived in fleet history.`);
@@ -2869,12 +2936,11 @@ function confirmReplaceDecision(type) {
 }
 
 async function showBreakdown(id) {
-  const fleet=await getFleet();const v=fleet.find(x=>x.id===id);if(!v)return;
-  const {score:s,bd,underutil}=score(v);
+  const fleet=await getFleet();const v=fleet.find(x=>String(x.id)===String(id));if(!v)return;
+  const {score:s,bd,underutil,batteryWarning,isBEV:bdIsBEV}=score(v);
   const st=status(s);const sc=statusColor(s);
   document.getElementById('bd-title').textContent=`Score Breakdown — ${v.model}`;
-  const {batteryWarning,isBEV:bdIsBEV}=score(v);
-  let html=`<div class="bd-total"><div class="bd-score" style="color:${sc}">${s}</div><div class="bd-label">out of 100 · <strong style="color:${sc}">${statusLabel(s)}</strong></div></div>${bdIsBEV?'<div style="background:#e6f4ed;border:1px solid #90d0aa;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1d7040">⚡ <strong>EV scoring active:</strong> Battery cycle threshold (160k km), BEV age curve, and tech risk adjustments applied.</div>':''}${batteryWarning?'<div style="background:#f7e4e4;border:1px solid #d09090;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#a32d2d">⚠️ <strong>Battery replacement window:</strong> This BEV is over 8 years old or has exceeded 160,000 km. Budget $8,000–$20,000 for battery assessment or replacement when evaluating replacement cost.</div>':''}
+  let html=`<div class="bd-total"><div class="bd-score" style="color:${sc}">${s}</div><div class="bd-label">out of 100 · <strong style="color:${sc}">${statusLabel(s)}</strong></div></div>${bdIsBEV?'<div style="background:#e6f4ed;border:1px solid #90d0aa;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1d7040">⚡ <strong>EV scoring active:</strong> Battery cycle threshold (160k km), BEV age curve, and tech risk adjustments applied.</div>':''}${batteryWarning?'<div style="background:#f7e4e4;border:1px solid #d09090;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#a32d2d">⚠️ <strong>Battery replacement window:</strong> This BEV is over 8 years old or has exceeded 160,000 km. Budget €8,000–€20,000 for battery assessment or replacement when evaluating replacement cost.</div>':''}
   <table class="bd-table">
   <tr style="background:var(--mist)"><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Factor</td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone)">Value</td><td class="bd-bar-cell"></td><td style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--stone);text-align:right">Pts</td></tr>`;
   bd.forEach(f=>{
@@ -3382,8 +3448,8 @@ function renderLiveData(fresh) {
   const badgeLabel = fresh ? 'Live' : 'Cached';
 
   const updates = {
-    'ld-diesel': { val: '$' + liveData.dieselPrice.toFixed(2), sub: 'per litre · global avg' },
-    'ld-petrol': { val: '$' + liveData.petrolPrice.toFixed(2), sub: 'per litre · global avg' },
+    'ld-diesel': { val: getAccountCurrency().symbol + liveData.dieselPrice.toFixed(2), sub: 'per litre · global avg' },
+    'ld-petrol': { val: getAccountCurrency().symbol + liveData.petrolPrice.toFixed(2), sub: 'per litre · global avg' },
     'ld-usedcar': { val: liveData.usedCarIndex, sub: 'YoY used car trend' },
     'ld-cpm': { val: getAccountCurrency().symbol + liveData.fleetAvgCPM.toFixed(2), sub: 'industry benchmark /km' },
     'ld-repair': { val: formatMoney(liveData.avgRepairCost), sub: 'per incident avg' },
@@ -3842,11 +3908,11 @@ function renderVehicleCommandCentre(scored, repairs, services, now) {
         <div class="vcmd-meta">${v.year} · ${parseInt(v.mileage||0).toLocaleString()} km${v.dept?' · '+v.dept:''}</div>
       </div>
       <div class="vcmd-score-wrap">
-        <div class="vcmd-bar-bg"><div class="vcmd-bar-fill" style="width:${s}%;background:${fc}"></div></div>
+        <div class="vcmd-bar-bg"><div class="vcmd-bar-fill" style="width:${isNaN(s)?0:s}%;background:${fc}"></div></div>
         <span class="vcmd-score-num" style="color:${fc}">${s}</span>
       </div>
       ${svcClass ? `<span class="vcmd-service ${svcClass}">${svcLabel}</span>` : `<span class="vcmd-service" style="color:var(--stone);font-size:11px">${svcLabel}</span>`}
-      <span class="vcmd-cost">${vCost>0?'$'+Math.round(vCost).toLocaleString():'—'}</span>
+      <span class="vcmd-cost">${vCost>0?getAccountCurrency().symbol+Math.round(vCost).toLocaleString():'—'}</span>
       <div class="vcmd-actions">
         <button class="vcmd-btn" onclick="showBreakdown(${v.id})">Score</button>
         <button class="vcmd-btn" onclick="editVehicle(${v.id})">Edit</button>
@@ -3873,7 +3939,7 @@ async function renderDashboardAlerts(repairs, scored, services, now) {
     const recent = vr.filter(r=>new Date(r.date)>=ninetyDaysAgo);
     if (recent.length >= 3) alerts.push({type:'yellow',icon:'⚠️',title:`${model}: ${recent.length} repairs in 90 days`,desc:'Repeated repairs may signal deeper mechanical issue.'});
     const bigRecent = vr.find(r=>parseFloat(r.cost)>=2000&&new Date(r.date)>=thirtyDaysAgo);
-    if (bigRecent) alerts.push({type:'yellow',icon:'💸',title:`${model}: $${Math.round(bigRecent.cost).toLocaleString()} repair last month`,desc:'Single repair above $2,000 — review vehicle value vs repair cost.'});
+    if (bigRecent) alerts.push({type:'yellow',icon:'💸',title:`${model}: ${formatMoney(Math.round(bigRecent.cost))} repair last month`,desc:`Single repair above ${getAccountCurrency().symbol}2,000 — review vehicle value vs repair cost.`});
   });
 
   // Service overdue
@@ -3913,7 +3979,7 @@ function renderSparkline(repairs, CY, now) {
 
   sparkEl.innerHTML = costs.map(c=>`<div class="spark-bar" style="height:${Math.max(4,Math.round(c/maxCost*100))}%" title="$${Math.round(c).toLocaleString()}"></div>`).join('');
   labelsEl.innerHTML = months.map(m=>`<div class="spark-label">${m.label}</div>`).join('');
-  totalEl.textContent = '$' + Math.round(total).toLocaleString();
+  totalEl.textContent = formatMoney(Math.round(total));
 }
 
 function renderServiceTable(services, fleet, now) {
@@ -4585,7 +4651,7 @@ async function renderSchedRepairs() {
       <td><span class="repair-cat ${catClass[r.category]||'cat-other'}">${r.category}</span></td>
       <td class="td-muted">${fmtDate(r.scheduledDate)}</td>
       <td class="td-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
-      <td class="td-muted">${r.estimatedCost ? '$'+r.estimatedCost.toLocaleString() : '—'}</td>
+      <td class="td-muted">${r.estimatedCost ? formatMoney(r.estimatedCost) : '—'}</td>
       <td>${statusPill}</td>
       <td style="display:flex;gap:4px;padding:10px 6px">
         ${!done ? `<button onclick="markSchedDone(${r.id})" class="btn btn-ghost btn-sm" title="Mark done" style="padding:4px 8px">✓</button>` : ''}
@@ -4780,6 +4846,7 @@ function updateCurrencyLabels() {
     'lbl-ev-value':    `Vehicle Value (${sym})`,
     'lbl-ev-fuelcost': `Fuel / Energy Cost (${sym}/yr)`,
     'fuelcost-label':  `Annual Fuel / Energy Cost (${sym}) ★`,
+    'lbl-insurance':   `Annual Insurance (${sym}) ★`,
   };
   Object.entries(lblMap).forEach(([id, txt]) => {
     const el = document.getElementById(id);
@@ -5069,7 +5136,7 @@ async function renderEVInsurance() {
         const age = CY2 - parseInt(v.year||CY2);
         const km = parseInt(v.mileage)||0;
         const battWarn = age>=8||km>=160000;
-        const health = v.batteryHealth ? `${v.batteryHealth}% health` : 'health unknown';
+        const health = v.batteryHealth ? `${v.batteryHealth}% SoH` : 'SoH not entered';
         const kwh = v.batteryKwh ? `${v.batteryKwh} kWh` : '—';
         const {score:s} = score(v);
         return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
