@@ -448,9 +448,9 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <div class="form-group"><label class="form-label">Plan</label>
         <select class="form-select" id="su-plan">
           <option value="trial">14-Day Free Trial (no card needed)</option>
-          <option value="starter">Starter — $49/mo (up to 20 vehicles)</option>
-          <option value="pro">Professional — $149/mo (up to 200 vehicles)</option>
-          <option value="enterprise">Enterprise — $399/mo (unlimited)</option>
+          <option value="starter"   id="opt-starter">Starter — loading...</option>
+          <option value="pro"       id="opt-pro">Professional — loading...</option>
+          <option value="enterprise">Enterprise — Contact Sales</option>
         </select>
       </div>
       <button class="btn btn-primary" style="margin-top:6px" onclick="doSignUp()">Create Account →</button>
@@ -1480,15 +1480,15 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
           <tr>
             <th style="width:40%">Feature</th>
             <th>Free Trial</th>
-            <th>Starter<br><span style="font-weight:400;font-size:10px;text-transform:none">$49/mo</span></th>
-            <th class="fm-current">Pro<br><span style="font-weight:400;font-size:10px;text-transform:none">$149/mo</span></th>
-            <th>Enterprise<br><span style="font-weight:400;font-size:10px;text-transform:none">$399/mo</span></th>
+            <th>Starter<br><span style="font-weight:400;font-size:10px;text-transform:none" id="fm-starter-price">—</span></th>
+            <th class="fm-current">Pro<br><span style="font-weight:400;font-size:10px;text-transform:none" id="fm-pro-price">—</span></th>
+            <th>Enterprise<br><span style="font-weight:400;font-size:10px;text-transform:none">Contact Sales</span></th>
           </tr>
         </thead>
         <tbody>
           <tr><td>Vehicles</td><td>10</td><td>20</td><td class="fm-current fm-plan">200</td><td>Unlimited</td></tr>
           <tr><td>Team members</td><td>2</td><td>2</td><td class="fm-current fm-plan">10</td><td>Unlimited</td></tr>
-          <tr><td>CSV Import</td><td class="fm-no">✕</td><td class="fm-yes">✓</td><td class="fm-current fm-yes">✓</td><td class="fm-yes">✓</td></tr>
+          <tr><td>CSV / Excel Import</td><td class="fm-no">✕</td><td class="fm-no">✕</td><td class="fm-current fm-yes">✓</td><td class="fm-yes">✓</td></tr>
           <tr><td>PDF Export</td><td class="fm-yes">✓</td><td class="fm-yes">✓</td><td class="fm-current fm-yes">✓</td><td class="fm-yes">✓</td></tr>
           <tr><td>Branded PDF reports</td><td class="fm-no">✕</td><td class="fm-no">✕</td><td class="fm-current fm-yes">✓</td><td class="fm-yes">✓</td></tr>
           <tr><td>Live market data</td><td class="fm-no">✕</td><td class="fm-no">✕</td><td class="fm-current fm-yes">✓</td><td class="fm-yes">✓</td></tr>
@@ -1605,10 +1605,59 @@ const BRAND_REL_LABEL = {0:'Excellent',1:'Very Good',2:'Good',3:'Average',4:'Bel
 const PLAN_LIMITS = {
   // Trial: full feature access for 14 days so users experience the real product
   trial:      { vehicles:200, members:10, label:'Free Trial',   badge:'#b8920e', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:14 },
-  starter:    { vehicles:20,  members:2,  label:'Starter',      badge:'#7a7a72', ai:false,pdfBranded:false,csvImport:true, liveData:false, trialDays:0  },
+  starter:    { vehicles:20,  members:2,  label:'Starter',      badge:'#7a7a72', ai:false,pdfBranded:false,csvImport:false,liveData:false, trialDays:0  },
   pro:        { vehicles:200, members:10, label:'Professional', badge:'#c8603a', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:0  },
   enterprise: { vehicles:1e9, members:1e9,label:'Enterprise',   badge:'#2e7d52', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:0  },
 };
+
+// ─── Geo-based pricing ───────────────────────────────────────────────────────
+// EU countries (ISO 3166-1 alpha-2). Pricing shown in EUR for these locales.
+const EU_LOCALES = new Set([
+  'AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU',
+  'IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK','NO',
+  'IS','CH','GB'  // incl. nearby Europe
+]);
+
+const EU_TIMEZONES = [
+  'Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid','Europe/Rome',
+  'Europe/Amsterdam','Europe/Brussels','Europe/Vienna','Europe/Warsaw',
+  'Europe/Lisbon','Europe/Stockholm','Europe/Helsinki','Europe/Oslo',
+  'Europe/Copenhagen','Europe/Dublin','Europe/Prague','Europe/Budapest',
+  'Europe/Bucharest','Europe/Sofia','Europe/Athens','Europe/Zagreb',
+  'Europe/Vilnius','Europe/Riga','Europe/Tallinn','Europe/Luxembourg',
+  'Europe/Valletta','Europe/Nicosia','Europe/Ljubljana','Europe/Bratislava',
+  'Europe/Zurich','Europe/Reykjavik','Atlantic/Canary','Atlantic/Madeira'
+];
+
+function isEUUser() {
+  // Check timezone first (most reliable, no API needed)
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  if (EU_TIMEZONES.some(t => tz.startsWith('Europe') || tz === t)) return true;
+  // Check browser locale language-region
+  const locale = (navigator.language || navigator.languages?.[0] || '').toUpperCase();
+  const region = locale.split('-')[1] || locale.split('_')[1] || '';
+  if (region && EU_LOCALES.has(region)) return true;
+  // Check all navigator languages
+  const allLangs = (navigator.languages || [navigator.language || '']).map(l => l.toUpperCase());
+  return allLangs.some(l => {
+    const r = l.split('-')[1] || l.split('_')[1] || '';
+    return r && EU_LOCALES.has(r);
+  });
+}
+
+// Returns pricing object based on detected region
+function getRegionalPricing() {
+  const eu = isEUUser();
+  return {
+    isEU: eu,
+    currency: eu ? 'EUR' : 'USD',
+    symbol:   eu ? '€'   : '$',
+    starter:  eu ? '29'  : '49',
+    pro:      eu ? '49'  : '149',
+    enterprise: eu ? null : null,  // Contact Sales for all regions
+    period: '/mo',
+  };
+}
 
 // Role capabilities
 const ROLE_CAN = {
@@ -1651,12 +1700,31 @@ function gate(feature, action='') {
   return false;
 }
 
+function populateRegionalPrices() {
+  const p = getRegionalPricing();
+  const starterEl = document.getElementById('fm-starter-price');
+  const proEl     = document.getElementById('fm-pro-price');
+  const optS      = document.getElementById('opt-starter');
+  const optP      = document.getElementById('opt-pro');
+  if (starterEl) starterEl.textContent = `${p.symbol}${p.starter}${p.period}`;
+  if (proEl)     proEl.textContent     = `${p.symbol}${p.pro}${p.period}`;
+  if (optS) optS.textContent = `Starter — ${p.symbol}${p.starter}/mo (up to 20 vehicles)`;
+  if (optP) optP.textContent = `Professional — ${p.symbol}${p.pro}/mo (up to 200 vehicles)`;
+  // Update any other hardcoded price strings
+  document.querySelectorAll('[data-plan-price]').forEach(el => {
+    const plan = el.getAttribute('data-plan-price');
+    if (plan === 'starter') el.textContent = `${p.symbol}${p.starter}/mo`;
+    if (plan === 'pro')     el.textContent = `${p.symbol}${p.pro}/mo`;
+    if (plan === 'enterprise') el.textContent = 'Contact Sales';
+  });
+}
+
 function showUpgradeWall(reason) {
   const messages = {
     trial_expired: { title:'Your free trial has ended', body:'You\'ve used your 14-day free trial. Upgrade to keep your fleet data and continue using Fleetzy.', cta:'Choose a Plan' },
     ai:            { title:'AI Analysis is a Pro feature', body:'Upgrade to Professional or Enterprise to unlock AI-powered fleet analysis with Claude.', cta:'Upgrade to Pro — $149/mo' },
     pdfBranded:    { title:'Branded PDF reports require Pro', body:'Starter plan exports unbranded PDFs. Upgrade to Pro for branded reports with your company logo.', cta:'Upgrade to Pro' },
-    csvImport:     { title:'CSV Import requires Starter or higher', body:'Upgrade from Free Trial to import your fleet data in bulk from a spreadsheet.', cta:'Upgrade to Starter — $49/mo' },
+    csvImport:     { title:'CSV / Excel Import requires Pro or higher', body:'Upgrade to Professional or Enterprise to import your fleet data in bulk from a spreadsheet.', cta:'Upgrade to Pro' },
     liveData:      { title:'Live Market Data is a Pro feature', body:'Real-time fuel prices and market benchmarks are available on Professional and Enterprise plans.', cta:'Upgrade to Pro' },
   };
   const m = messages[reason] || { title:'Upgrade required', body:'This feature is not available on your current plan.', cta:'View Plans' };
@@ -3330,6 +3398,8 @@ function launchApp(){
 
   // Always sync the currency dropdown BEFORE any save can fire
   loadCurrencySetting();
+  // Apply geo-based pricing
+  populateRegionalPrices();
 
   nav(startSec, { noHistory: true });
   renderPlanUI();
@@ -5439,51 +5509,96 @@ async function openBulkKm() {
   const fleet = await getFleet();
   const tbody = document.getElementById('bulk-km-tbody');
   if (!tbody) return;
-  tbody.innerHTML = fleet.sort((a,b)=>(a.model||'').localeCompare(b.model||'')).map(v => `
-    <tr style="border-bottom:1px solid var(--border)">
+  const sorted = [...fleet].sort((a,b) => (a.model||'').localeCompare(b.model||''));
+  tbody.innerHTML = sorted.map(v => {
+    const km = parseInt(v.mileage)||0;
+    return `<tr style="border-bottom:1px solid var(--border)" data-vid="${v.id}" data-km="${km}">
       <td style="padding:8px 12px">
-        <div style="font-weight:600;font-size:13px">${v.model}</div>
-        <div style="font-size:11px;color:var(--stone)">${v.year}${v.dept?' · '+v.dept:''}</div>
+        <div style="font-weight:600;font-size:13px">${v.model||'—'}</div>
+        <div style="font-size:11px;color:var(--stone)">${v.year||''}${v.dept?' · '+v.dept:''}</div>
       </td>
-      <td style="padding:8px 12px;text-align:right;font-size:13px;color:var(--stone)">
-        ${parseInt(v.mileage||0).toLocaleString()} km
-      </td>
+      <td style="padding:8px 12px;text-align:right;font-size:13px;color:var(--stone)">${km.toLocaleString()} km</td>
       <td style="padding:8px 12px;text-align:right">
-        <input type="number" class="form-input" data-vid="${v.id}"
-          style="width:120px;text-align:right;padding:4px 8px;font-size:13px"
-          placeholder="${parseInt(v.mileage||0).toLocaleString()}"
-          min="${parseInt(v.mileage||0)}"/>
+        <input type="number" class="form-input km-new-input"
+          data-vid="${v.id}" data-oldkm="${km}"
+          style="width:130px;text-align:right;padding:4px 8px;font-size:13px"
+          placeholder="New reading…"/>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   document.getElementById('bulk-km-status').textContent = '';
   openModal('modal-bulk-km');
 }
 
-async function saveBulkKm() {
-  const inputs = document.querySelectorAll('#bulk-km-tbody input[data-vid]');
-  let updated = 0;
-  const fleet = await getFleet();
-  const updates = [];
-  inputs.forEach(inp => {
-    const newKm = parseInt(inp.value);
-    if (!inp.value || isNaN(newKm)) return;
-    const vid = inp.getAttribute('data-vid');
-    const v = fleet.find(x => String(x.id) === String(vid));
-    if (!v) return;
-    const oldKm = parseInt(v.mileage||0);
-    if (newKm <= oldKm) { inp.style.borderColor='var(--red)'; return; } // must be higher
-    inp.style.borderColor='var(--green)';
-    updates.push({ ...v, mileage: newKm });
-    updated++;
-  });
-  if (!updated) { document.getElementById('bulk-km-status').textContent = 'No valid updates entered.'; return; }
-  // Apply updates
-  for (const v of updates) {
-    await addVehicleToStore(v); // upsert — same id so it updates
+// Dedicated KM updater — writes directly to both Supabase and localStorage
+// without touching any other vehicle fields
+async function updateVehicleMileage(vehicleId, newMileage) {
+  const kmInt = parseInt(newMileage);
+  if (!kmInt) return false;
+
+  // 1. Update localStorage in-place
+  const key = 'fy_fleet_' + (session?.accountId||'');
+  const lf = getStore(key) || [];
+  const idx = lf.findIndex(x => String(x.id) === String(vehicleId));
+  if (idx >= 0) {
+    lf[idx] = { ...lf[idx], mileage: kmInt };
+    setStore(key, lf);
   }
+
+  // 2. Update Supabase
+  if (isSupabaseReady() && session?.accountId) {
+    try {
+      const { error } = await sb.from('vehicles')
+        .update({ mileage: kmInt })
+        .eq('id', String(vehicleId))
+        .eq('account_id', session.accountId);
+      if (error) console.warn('[KM] Supabase update failed:', error.message);
+      else console.log('[KM] Updated', vehicleId, '→', kmInt, 'km');
+    } catch(e) { console.warn('[KM] Supabase error:', e.message); }
+  }
+
+  // 3. Always clear cache so next read reflects new value
   _fleetCache = null;
-  document.getElementById('bulk-km-status').textContent = `✅ ${updated} vehicle(s) updated.`;
-  setTimeout(() => { closeModal('modal-bulk-km'); renderTable(); renderUnifiedDashboard(); }, 1200);
+  return true;
+}
+
+async function saveBulkKm() {
+  const inputs = document.querySelectorAll('#bulk-km-tbody input.km-new-input');
+  const statusEl = document.getElementById('bulk-km-status');
+  statusEl.textContent = 'Saving…';
+  let updated = 0, errors = 0;
+
+  for (const inp of inputs) {
+    const raw = inp.value.trim();
+    if (!raw) continue; // skip blank — user didn't update this vehicle
+    const newKm  = parseInt(raw.replace(/[^0-9]/g,''));
+    const oldKm  = parseInt(inp.getAttribute('data-oldkm')||0);
+    const vid    = inp.getAttribute('data-vid');
+    if (isNaN(newKm) || newKm <= 0) { inp.style.borderColor='var(--red)'; errors++; continue; }
+    if (newKm < oldKm) {
+      inp.style.borderColor = 'var(--red)';
+      inp.title = `Must be ≥ current reading (${oldKm.toLocaleString()} km)`;
+      errors++; continue;
+    }
+    inp.style.borderColor = 'var(--green)';
+    inp.disabled = true;
+    await updateVehicleMileage(vid, newKm);
+    updated++;
+  }
+
+  if (updated === 0 && errors === 0) {
+    statusEl.textContent = 'No values entered — type new km readings in the right column.';
+    return;
+  }
+  statusEl.textContent = `✅ ${updated} vehicle(s) updated${errors?' · '+errors+' invalid (shown in red)':''}.`;
+  if (updated > 0) {
+    setTimeout(async () => {
+      closeModal('modal-bulk-km');
+      _fleetCache = null;
+      await renderTable();
+      renderUnifiedDashboard();
+    }, 1000);
+  }
 }
 
 async function downloadKmCsv() {
@@ -5541,6 +5656,8 @@ function applyChargingCost() {
 }
 
 // ═══════════ INIT ═══════════
+// Populate prices immediately on page load (before login, for signup form)
+document.addEventListener('DOMContentLoaded', () => { populateRegionalPrices(); });
 (async function init() {
   // Step 1: boot Supabase if credentials saved
   initSupabase();
