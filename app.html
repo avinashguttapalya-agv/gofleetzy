@@ -600,7 +600,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
       <!-- FLEET TABLE -->
       <div id="sec-fleet" style="display:none">
         <div class="card">
-          <div class="card-header"><div class="card-title">All Vehicles</div><button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add</button></div>
+          <div class="card-header"><div class="card-title">All Vehicles</div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="openBulkKm()">🛣️ Update KMs</button><button class="btn btn-ghost btn-sm" onclick="nav('add')">＋ Add</button></div></div>
           <!-- FILTER BAR -->
           <div style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--mist)">
             <input id="fleet-search" class="form-input" type="text" placeholder="🔍 Search model, brand, dept…" style="flex:2;min-width:180px;max-width:300px" oninput="renderTable()"/>
@@ -693,8 +693,8 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
               <div class="form-group"><label class="form-label">Current Mileage (km)</label><input class="form-input" id="f-mileage" type="number" placeholder="e.g. 145000"/></div>
               <div class="form-group"><label class="form-label">Annual Usage (km/yr)</label><input class="form-input" id="f-annual" type="number" placeholder="e.g. 20000"/></div>
               <div class="section-rule">Cost Data ★</div>
-              <div class="form-group"><label class="form-label">Annual Maintenance ($)</label><input class="form-input" id="f-maint" type="number" placeholder="e.g. 2500"/></div>
-              <div class="form-group"><label class="form-label">Vehicle Value ($) ★</label><input class="form-input" id="f-value" type="number" placeholder="e.g. 15000"/></div>
+              <div class="form-group"><label class="form-label" id="lbl-maint">Annual Maintenance</label><input class="form-input" id="f-maint" type="number" placeholder="e.g. 2500"/></div>
+              <div class="form-group"><label class="form-label" id="lbl-value">Vehicle Value ★</label><input class="form-input" id="f-value" type="number" placeholder="e.g. 15000"/></div>
               <div class="form-group" id="fuelcost-group"><label class="form-label" id="fuelcost-label">Annual Fuel Cost ★</label><input class="form-input" id="f-fuelcost" type="number" placeholder="e.g. 3000"/></div>
               <div class="section-rule">Reliability ★</div>
               <div class="form-group"><label class="form-label">Repairs (last 12mo)</label><input class="form-input" id="f-repairs" type="number" placeholder="e.g. 3"/></div>
@@ -1386,8 +1386,8 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         <div class="form-group" style="margin:0"><label class="form-label">Mileage (km)</label><input class="form-input" id="ev-mileage" type="number" min="0"/></div>
         <div class="form-group" style="margin:0"><label class="form-label">Annual km</label><input class="form-input" id="ev-annual" type="number" min="0"/></div>
         <div class="form-group" style="margin:0"><label class="form-label">Maint. Cost ($/yr)</label><input class="form-input" id="ev-maint" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Vehicle Value ($)</label><input class="form-input" id="ev-value" type="number" min="0"/></div>
-        <div class="form-group" style="margin:0"><label class="form-label">Fuel Cost ($/yr)</label><input class="form-input" id="ev-fuelcost" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label" id="lbl-ev-value">Vehicle Value</label><input class="form-input" id="ev-value" type="number" min="0"/></div>
+        <div class="form-group" style="margin:0"><label class="form-label" id="lbl-ev-fuelcost">Fuel Cost /yr</label><input class="form-input" id="ev-fuelcost" type="number" min="0"/></div>
         <div class="form-group" style="margin:0"><label class="form-label">Repairs (12mo)</label><input class="form-input" id="ev-repairs" type="number" min="0"/></div>
         <div class="form-group" style="margin:0"><label class="form-label">Downtime Days/yr</label><input class="form-input" id="ev-downtime" type="number" min="0"/></div>
         <div class="form-group" style="margin:0"><label class="form-label">Condition</label>
@@ -1809,6 +1809,102 @@ function fromSupabaseVehicle(r) {
 
 // ─── Write queue: vehicles saved locally while Supabase was unavailable ───────
 const WQ_KEY = () => 'fy_wq_vehicles_' + (session?.accountId || '');
+
+// ─── Replacement Decision Store ──────────────────────────────────────────────
+// Tracks "Continue" decisions for vehicles at Replace Now threshold.
+// Used for: (a) badge on fleet table, (b) adaptive threshold learning.
+const DECISIONS_KEY = () => 'fy_decisions_' + (session?.accountId || '');
+
+function getDecisions() {
+  return getStore(DECISIONS_KEY()) || {};
+}
+
+function saveDecisions(d) {
+  setStore(DECISIONS_KEY(), d);
+}
+
+// Record that a vehicle was marked as "Continue Working" past Replace Now
+function recordContinue(vehicleId, currentScore, currentMileage) {
+  const decisions = getDecisions();
+  if (!decisions[vehicleId]) decisions[vehicleId] = { history: [] };
+  decisions[vehicleId].history.push({
+    type: 'continue',
+    score: currentScore,
+    mileage: parseInt(currentMileage)||0,
+    date: new Date().toISOString().split('T')[0],
+    ts: Date.now(),
+  });
+  decisions[vehicleId].lastContinue = {
+    score: currentScore,
+    mileage: parseInt(currentMileage)||0,
+    date: new Date().toISOString().split('T')[0],
+    ts: Date.now(),
+  };
+  decisions[vehicleId].status = 'continue';
+  saveDecisions(decisions);
+  // Also save to Supabase decisions table if available
+  saveDecisionToSupabase(vehicleId, 'continue', currentScore, currentMileage);
+}
+
+// Record that a vehicle was confirmed as replaced
+function recordReplaced(vehicleId, currentScore, currentMileage) {
+  const decisions = getDecisions();
+  if (!decisions[vehicleId]) decisions[vehicleId] = { history: [] };
+  decisions[vehicleId].history.push({
+    type: 'replaced',
+    score: currentScore,
+    mileage: parseInt(currentMileage)||0,
+    date: new Date().toISOString().split('T')[0],
+    ts: Date.now(),
+  });
+  decisions[vehicleId].status = 'replaced';
+  saveDecisions(decisions);
+  saveDecisionToSupabase(vehicleId, 'replaced', currentScore, currentMileage);
+}
+
+async function saveDecisionToSupabase(vehicleId, type, score, mileage) {
+  if (!isSupabaseReady() || !session?.accountId) return;
+  try {
+    await sb.from('vehicle_decisions').insert({
+      account_id: session.accountId,
+      vehicle_id: String(vehicleId),
+      decision_type: type,
+      score_at_decision: score,
+      mileage_at_decision: parseInt(mileage)||0,
+      decided_at: new Date().toISOString(),
+    });
+  } catch(e) { /* table may not exist yet — silently ignore */ }
+}
+
+// ─── Adaptive Threshold Learning ─────────────────────────────────────────────
+// When a fleet consistently says "continue" for vehicles at a certain score,
+// the effective threshold shifts upward for that account.
+// getAdaptiveThreshold() returns the account's learned replacement threshold.
+function getAdaptiveThreshold() {
+  const decisions = getDecisions();
+  const continues = Object.values(decisions)
+    .flatMap(d => (d.history||[]).filter(h => h.type==='continue'))
+    .map(h => h.score);
+  if (continues.length < 3) return 65; // not enough data → use default
+  // Sort and take the 75th percentile of continue scores
+  // (this means 75% of "continue" votes happened at or below this score)
+  const sorted = [...continues].sort((a,b)=>a-b);
+  const p75 = sorted[Math.floor(sorted.length * 0.75)];
+  // Cap: never let the threshold drop below 55 or rise above 85
+  const adaptive = Math.min(Math.max(Math.round(p75), 55), 85);
+  return adaptive;
+}
+
+// Get days and km an individual vehicle has been continued past replace
+function getContinuationStats(vehicleId, currentMileage) {
+  const decisions = getDecisions();
+  const d = decisions[vehicleId];
+  if (!d || d.status !== 'continue' || !d.lastContinue) return null;
+  const daysSince = Math.round((Date.now() - d.lastContinue.ts) / (1000*60*60*24));
+  const kmSince   = Math.max(0, (parseInt(currentMileage)||0) - (d.lastContinue.mileage||0));
+  return { daysSince, kmSince, sinceScore: d.lastContinue.score, sinceDate: d.lastContinue.date,
+           continueCount: (d.history||[]).filter(h=>h.type==='continue').length };
+}
 
 function enqueueVehicle(v) {
   const q = getStore(WQ_KEY()) || [];
@@ -2243,10 +2339,12 @@ async function signOut() {
 
 function score(v) {
   let total = 0; const bd = [];
+  if (!v || !v.model) return {score:0, bd:[], underutil:false, cpmVal:'—', batteryWarning:false, isBEV:false, isEV:false};
   const isBEV = (v.fueltype === 'bev');
   const isPHEV = (v.fueltype === 'phev');
   const isEV = isBEV || isPHEV;
-  const age = CY - parseInt(v.year||CY);
+  const rawYear = parseInt(v.year);
+  const age = isNaN(rawYear) ? 0 : Math.max(0, CY - rawYear);
 
   // ── Factor 1: TCO Crossover Age (max 20 pts) ─────────────────────
   // EVs have lower mechanical wear but battery degradation accelerates after yr 8.
@@ -2283,9 +2381,10 @@ function score(v) {
   // EVs are benchmarked against a lower threshold ($0.12 baseline instead of $0.17).
   // BEV fuel cost = 0 (no petrol) — electricity cost is tracked separately if entered under fuelcost
   const annual=parseInt(v.annual)||0, maint=parseInt(v.maint)||0;
-  // BEV: fuelcost field is hidden/empty — treat as 0 for fuel but electricity may be in fuelcost
-  const fuelcost = isBEV ? 0 : (parseInt(v.fuelcost)||0);
-  const electricity = isBEV ? (parseInt(v.fuelcost)||0) : 0; // BEV stores elec cost in fuelcost field if user entered it before type change
+  // BEV: fuelcost stores the annual charging/electricity cost (entered via the charging estimator or manually).
+  // Include it in CPM so the comparison reflects real total operating cost.
+  const fuelcost = parseInt(v.fuelcost)||0; // for ICE: fuel; for BEV: electricity/charging
+  const electricity = isBEV ? fuelcost : 0;
   const insurance=parseInt(v.insurance)||0;
   // Include insurance in CPM if provided (true total operating cost)
   const totalOpCost = maint + fuelcost + insurance;
@@ -2583,7 +2682,7 @@ async function renderTable() {
   tbody.innerHTML = filtered.map(({v,score:s,underutil,cpmVal}) => {
     const pc=pillClass(s),fc=fillColor(s),brPts=BRAND_RELIABILITY[v.brand]??3;
     return `<tr>
-      <td><strong>${v.model}</strong>${v.dept?`<div class="td-muted">${v.dept}</div>`:''}${underutil?`<div style="font-size:11px;color:var(--yellow);font-weight:600">⚠ Underutilized</div>`:''}</td>
+      <td><strong>${v.model}</strong>${v.dept?`<div class="td-muted">${v.dept}</div>`:''}${underutil?`<div style="font-size:11px;color:var(--yellow);font-weight:600">⚠ Underutilized</div>`:''}${(()=>{const cs=getContinuationStats(v.id,v.mileage);return cs?`<div style="font-size:10px;color:var(--accent);font-weight:600">⏩ ${cs.daysSince}d / ${cs.kmSince.toLocaleString()}km past threshold</div>`:'';})()}</td>
       <td>${v.year}</td>
       <td>${parseInt(v.mileage).toLocaleString()}</td>
       <td class="td-muted">${cpmVal}</td>
@@ -2591,7 +2690,8 @@ async function renderTable() {
       <td style="font-size:12px">${BRAND_LABEL[v.brand]||'—'}<br><span style="color:${brPts<=2?'var(--green)':brPts<=4?'var(--stone)':'var(--red)'}">${BRAND_REL_LABEL[brPts]||'Avg'}</span></td>
       <td><div class="score-wrap"><div class="score-bg"><div class="score-fill" style="width:${s}%;background:${fc}"></div></div><span class="score-num" style="color:${fc}">${s}</span></div></td>
       <td><span class="pill ${pc}"><span class="dot"></span>${statusLabel(s)}</span></td>
-      <td style="display:flex;gap:5px;padding:12px 8px">
+      <td style="display:flex;gap:5px;padding:12px 8px;flex-wrap:wrap">
+        ${s>=65?`<button onclick="showReplaceDecision(${v.id})" class="btn btn-sm" style="background:var(--red);color:#fff;font-size:10px;padding:3px 7px" title="Mark replaced or continue">⚑ Decision</button>`:''}
         <button onclick="showBreakdown(${v.id})" class="btn btn-ghost btn-sm" title="Score breakdown">⁉</button>
         <button onclick="editVehicle(${v.id})" class="btn btn-ghost btn-sm" title="Edit vehicle">✏️</button>
         <button onclick="delVehicle(${v.id})" style="background:none;border:none;cursor:pointer;color:var(--stone);font-size:15px;padding:4px 7px" title="Remove">✕</button>
@@ -2679,14 +2779,16 @@ function toggleEVFields(){
   const fuelLbl = document.getElementById('fuelcost-label');
   const fuelInp = document.getElementById('f-fuelcost');
   if(fuelGrp) {
-    if(isBEV) {
+    if(false && isBEV) { // BEV: keep fuel/charging cost field visible
       fuelGrp.style.display='none';
-      if(fuelInp) fuelInp.value='';  // BEV has no fuel cost
+      if(fuelInp) fuelInp.value='';
     } else {
       fuelGrp.style.display='';
       if(fuelLbl) fuelLbl.textContent = ft==='phev'
         ? 'Annual Fuel Cost (hybrid) ★'
-        : 'Annual Fuel Cost ★';
+        : ft==='bev'
+        ? `Annual Charging / Energy Cost (${getAccountCurrency().symbol}) ★`
+        : `Annual Fuel Cost (${getAccountCurrency().symbol}) ★`;
     }
   }
 
@@ -2702,6 +2804,70 @@ async function delVehicle(id){if(gate('','deleteVehicle'))return;const fleet=awa
 async function confirmDelete(){await deleteVehicleFromStore(deleteId);closeModal('modal-delete');toast('Vehicle removed.');await renderTable();}
 
 // ═══════════ BREAKDOWN MODAL ═══════════
+// ─── Replacement Decision Functions ─────────────────────────────────────────
+let _decisionVehicleId = null;
+
+function showReplaceDecision(vehicleId) {
+  const decisions = getDecisions();
+  _decisionVehicleId = vehicleId;
+  getFleet().then(fleet => {
+    const v = fleet.find(x => String(x.id) === String(vehicleId));
+    if (!v) return;
+    const { score: s } = score(v);
+    const threshold = getAdaptiveThreshold();
+    const stats = getContinuationStats(vehicleId, v.mileage);
+    const titleEl = document.getElementById('rdc-title');
+    const vehicleEl = document.getElementById('rdc-vehicle');
+    const statsEl = document.getElementById('rdc-stats');
+    const msgEl = document.getElementById('rdc-message');
+    const learningEl = document.getElementById('rdc-learning-info');
+    if (titleEl) titleEl.textContent = `🔴 ${v.model} — Score ${s}/100`;
+    if (vehicleEl) vehicleEl.textContent = `${v.model} (${v.year}) · ${parseInt(v.mileage||0).toLocaleString()} km`;
+    if (statsEl) {
+      const parts = [`Score: ${s}/100`, `Mileage: ${parseInt(v.mileage||0).toLocaleString()} km`];
+      if (stats) parts.push(`Already continued ${stats.continueCount}× · ${stats.daysSince} days past threshold · ${stats.kmSince.toLocaleString()} km since decision`);
+      statsEl.textContent = parts.join(' · ');
+    }
+    if (msgEl) {
+      if (stats) {
+        msgEl.innerHTML = `This vehicle has been running for <strong>${stats.daysSince} days</strong> and <strong>${stats.kmSince.toLocaleString()} km</strong> since you last chose Continue Working at a score of <strong>${stats.sinceScore}</strong>. Current score is <strong>${s}</strong>. What would you like to do now?`;
+      } else {
+        msgEl.innerHTML = `This vehicle has reached the <strong>Replace Now</strong> threshold (score ≥ ${threshold}). Based on your fleet patterns, what would you like to do?`;
+      }
+    }
+    // Show learning info after 2+ previous continue decisions across fleet
+    const allContinues = Object.values(getDecisions()).flatMap(d => (d.history||[]).filter(h=>h.type==='continue'));
+    if (learningEl) learningEl.style.display = allContinues.length >= 2 ? 'block' : 'none';
+    openModal('modal-replace-decision');
+  });
+}
+
+function confirmReplaceDecision(type) {
+  if (!_decisionVehicleId) return;
+  closeModal('modal-replace-decision');
+  getFleet().then(fleet => {
+    const v = fleet.find(x => String(x.id) === String(_decisionVehicleId));
+    if (!v) return;
+    const { score: s } = score(v);
+    if (type === 'replaced') {
+      recordReplaced(_decisionVehicleId, s, v.mileage);
+      toast(`✅ ${v.model} marked as replaced. It will be archived in fleet history.`);
+      // Optionally remove from active fleet after a delay
+      setTimeout(() => {
+        if (confirm(`Remove ${v.model} from the active fleet now?`)) {
+          delVehicle(_decisionVehicleId);
+        }
+      }, 500);
+    } else {
+      recordContinue(_decisionVehicleId, s, v.mileage);
+      const threshold = getAdaptiveThreshold();
+      toast(`⏩ Noted — tracking ${v.model} as continued operation past Replace Now. Your adaptive threshold is now ${threshold}.`);
+      renderTable(); // refresh to show continuation badge
+    }
+    _decisionVehicleId = null;
+  });
+}
+
 async function showBreakdown(id) {
   const fleet=await getFleet();const v=fleet.find(x=>x.id===id);if(!v)return;
   const {score:s,bd,underutil}=score(v);
@@ -4592,15 +4758,46 @@ function loadCurrencySetting() {
   const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
   const cur = localStorage.getItem(key) || localStorage.getItem('fy_account_currency') || 'USD|$|en';
   const sel = document.getElementById('set-currency');
-  if (!sel) return;
-  // Find matching option by code prefix — set the full value so it sticks
-  const code = cur.split('|')[0];
-  let matched = false;
-  Array.from(sel.options).forEach(o => {
-    if (o.value.startsWith(code + '|')) { sel.value = o.value; matched = true; }
+  if (sel) {
+    const code = cur.split('|')[0];
+    let matched = false;
+    Array.from(sel.options).forEach(o => {
+      if (o.value.startsWith(code + '|')) { sel.value = o.value; matched = true; }
+    });
+    if (!matched) sel.value = sel.options[0]?.value || '';
+  }
+  // Sync all currency-bearing UI labels to current symbol
+  updateCurrencyLabels();
+}
+
+function updateCurrencyLabels() {
+  const sym = getAccountCurrency().symbol;
+  const name = getAccountCurrency().code;
+  // Form labels
+  const lblMap = {
+    'lbl-maint':       `Annual Maintenance (${sym})`,
+    'lbl-value':       `Vehicle Value (${sym}) ★`,
+    'lbl-ev-value':    `Vehicle Value (${sym})`,
+    'lbl-ev-fuelcost': `Fuel / Energy Cost (${sym}/yr)`,
+    'fuelcost-label':  `Annual Fuel / Energy Cost (${sym}) ★`,
+  };
+  Object.entries(lblMap).forEach(([id, txt]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
   });
-  // If no match found (shouldn't happen) — leave as default
-  if (!matched) sel.value = sel.options[0].value;
+  // Update placeholders to use local symbol
+  const phMap = {
+    'f-maint':    `e.g. ${sym}2,500`,
+    'f-value':    `e.g. ${sym}15,000`,
+    'f-fuelcost': `e.g. ${sym}3,000`,
+    'f-insurance':`e.g. ${sym}1,200`,
+    'ev-value':   `e.g. ${sym}15,000`,
+    'ev-fuelcost':`e.g. ${sym}2,000`,
+  };
+  Object.entries(phMap).forEach(([id, ph]) => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.placeholder = ph;
+  });
 }
 
 // ═══════════ INVOICE EDIT FUNCTIONS ═══════════
@@ -5127,6 +5324,113 @@ function fmtDateShort(isoStr) {
   if (!y||!m||!d) return isoStr;
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+}
+
+
+// ─── Bulk KM Update ──────────────────────────────────────────────────────────
+async function openBulkKm() {
+  const fleet = await getFleet();
+  const tbody = document.getElementById('bulk-km-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = fleet.sort((a,b)=>(a.model||'').localeCompare(b.model||'')).map(v => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px">
+        <div style="font-weight:600;font-size:13px">${v.model}</div>
+        <div style="font-size:11px;color:var(--stone)">${v.year}${v.dept?' · '+v.dept:''}</div>
+      </td>
+      <td style="padding:8px 12px;text-align:right;font-size:13px;color:var(--stone)">
+        ${parseInt(v.mileage||0).toLocaleString()} km
+      </td>
+      <td style="padding:8px 12px;text-align:right">
+        <input type="number" class="form-input" data-vid="${v.id}"
+          style="width:120px;text-align:right;padding:4px 8px;font-size:13px"
+          placeholder="${parseInt(v.mileage||0).toLocaleString()}"
+          min="${parseInt(v.mileage||0)}"/>
+      </td>
+    </tr>`).join('');
+  document.getElementById('bulk-km-status').textContent = '';
+  openModal('modal-bulk-km');
+}
+
+async function saveBulkKm() {
+  const inputs = document.querySelectorAll('#bulk-km-tbody input[data-vid]');
+  let updated = 0;
+  const fleet = await getFleet();
+  const updates = [];
+  inputs.forEach(inp => {
+    const newKm = parseInt(inp.value);
+    if (!inp.value || isNaN(newKm)) return;
+    const vid = inp.getAttribute('data-vid');
+    const v = fleet.find(x => String(x.id) === String(vid));
+    if (!v) return;
+    const oldKm = parseInt(v.mileage||0);
+    if (newKm <= oldKm) { inp.style.borderColor='var(--red)'; return; } // must be higher
+    inp.style.borderColor='var(--green)';
+    updates.push({ ...v, mileage: newKm });
+    updated++;
+  });
+  if (!updated) { document.getElementById('bulk-km-status').textContent = 'No valid updates entered.'; return; }
+  // Apply updates
+  for (const v of updates) {
+    await addVehicleToStore(v); // upsert — same id so it updates
+  }
+  _fleetCache = null;
+  document.getElementById('bulk-km-status').textContent = `✅ ${updated} vehicle(s) updated.`;
+  setTimeout(() => { closeModal('modal-bulk-km'); renderTable(); renderUnifiedDashboard(); }, 1200);
+}
+
+async function downloadKmCsv() {
+  const fleet = await getFleet();
+  const rows = [['vehicle_id','model','year','current_mileage','new_mileage']];
+  fleet.forEach(v => rows.push([v.id, v.model, v.year, parseInt(v.mileage||0), '']));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'gofleetzy_km_update.csv'; a.click();
+  toast('CSV downloaded — update the new_mileage column and re-import via Import Data.');
+}
+
+
+// ─── EV Charging Cost Calculator ─────────────────────────────────────────────
+function calcChargingCost() {
+  const sym = getAccountCurrency().symbol;
+  const rate       = parseFloat(document.getElementById('ev-kwh-rate')?.value) || 0;
+  const consumption= parseFloat(document.getElementById('ev-consumption')?.value) || 0;
+  const annualKm   = parseFloat(document.getElementById('f-annual')?.value) || 0;
+  const monthlyBill= parseFloat(document.getElementById('ev-monthly-bill')?.value) || 0;
+  const billPct    = parseFloat(document.getElementById('ev-bill-pct')?.value) || 0;
+
+  let estimatedAnnual = 0;
+  let method = '';
+
+  if (rate > 0 && consumption > 0 && annualKm > 0) {
+    // Method A: rate × consumption × km
+    estimatedAnnual = (consumption / 100) * annualKm * rate;
+    method = `Method A: ${consumption} kWh/100km × ${annualKm.toLocaleString()} km × ${sym}${rate}/kWh`;
+  } else if (monthlyBill > 0 && billPct > 0) {
+    // Method B: monthly bill × EV share
+    estimatedAnnual = monthlyBill * 12 * (billPct / 100);
+    method = `Method B: ${sym}${monthlyBill}/mo × ${billPct}% EV share × 12`;
+  }
+
+  const resultEl = document.getElementById('ev-charging-result');
+  if (resultEl && estimatedAnnual > 0) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `Estimated annual charging cost: <strong>${sym}${Math.round(estimatedAnnual).toLocaleString()}</strong><br><span style="font-size:11px;font-weight:400;color:var(--stone)">${method}</span>`;
+    resultEl._value = Math.round(estimatedAnnual);
+  } else if (resultEl) {
+    resultEl.style.display = 'none';
+  }
+}
+
+function applyChargingCost() {
+  const resultEl = document.getElementById('ev-charging-result');
+  if (!resultEl || !resultEl._value) { toast('Enter rate/consumption or bill data first.'); return; }
+  const fuelInput = document.getElementById('f-fuelcost');
+  if (fuelInput) {
+    fuelInput.value = resultEl._value;
+    toast(`✅ Annual charging cost set to ${getAccountCurrency().symbol}${resultEl._value.toLocaleString()}`);
+  }
 }
 
 // ═══════════ INIT ═══════════
