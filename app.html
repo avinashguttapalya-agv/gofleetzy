@@ -646,23 +646,7 @@ td{padding:12px 14px;font-size:14px;vertical-align:middle}
         <div class="card">
           <div class="card-header"><div class="card-title">Add Vehicle</div><div class="card-sub">★ = new research-backed factors</div></div>
           <div class="card-body">
-            <!-- PLATE SCANNER -->
-            <div class="plate-scan-bar" id="plate-scan-bar">
-              <div class="plate-scan-bar-label">🔎 Scan Plate</div>
-              <div class="plate-input-wrap">
-                <input class="plate-text-input" id="plate-text" placeholder="Type plate number..." maxlength="10" oninput="this.value=this.value.toUpperCase()"/>
-                <div class="plate-photo-btn">📷 Photo<input type="file" accept="image/*" capture="environment" onchange="handlePlatePhoto(this.files[0])"/></div>
-                <button class="plate-lookup-btn" id="plate-lookup-btn" onclick="lookupPlate()">Look Up →</button>
-              </div>
-              <div class="plate-status" id="plate-status"></div>
-              <div class="plate-result" id="plate-result">
-                <div class="plate-result-field"><div class="plate-result-label">Make & Model</div><div class="plate-result-val" id="pr-model">—</div></div>
-                <div class="plate-result-field"><div class="plate-result-label">Year</div><div class="plate-result-val" id="pr-year">—</div></div>
-                <div class="plate-result-field"><div class="plate-result-label">Fuel Type</div><div class="plate-result-val" id="pr-fuel">—</div></div>
-                <div class="plate-result-field"><div class="plate-result-label">Engine</div><div class="plate-result-val" id="pr-engine">—</div></div>
-                <button class="plate-apply-btn" onclick="applyPlateResult()">Fill Form →</button>
-              </div>
-            </div>
+
             <div class="info-box" style="margin-bottom:18px">Fill in as many fields as possible. The more data, the more accurate your replacement score.</div>
             <div class="form-grid">
               <div class="form-group"><label class="form-label">Make & Model</label><input class="form-input" id="f-model" placeholder="e.g. Toyota Corolla"/></div>
@@ -1619,10 +1603,11 @@ const BRAND_RELIABILITY = {
 const BRAND_LABEL = {toyota:'Toyota',lexus:'Lexus',honda:'Honda',acura:'Acura',mazda:'Mazda',subaru:'Subaru',hyundai:'Hyundai',kia:'Kia',nissan:'Nissan',ford:'Ford',chevrolet:'Chevrolet',gmc:'GMC',dodge:'Dodge',ram:'RAM',jeep:'Jeep',bmw:'BMW',mercedes:'Mercedes',audi:'Audi',volkswagen:'VW',landrover:'Land Rover',fiat:'Fiat',alfa:'Alfa Romeo',tesla:'Tesla',rivian:'Rivian',lucid:'Lucid',polestar:'Polestar',byd:'BYD',nio:'NIO',xpeng:'XPENG',other:'Other'};
 const BRAND_REL_LABEL = {0:'Excellent',1:'Very Good',2:'Good',3:'Average',4:'Below Avg',5:'Below Avg',6:'Poor',7:'Poor',8:'Very Poor',10:'Very Poor'};
 const PLAN_LIMITS = {
-  trial:      { vehicles:10,   members:2,        label:'Free Trial',    badge:'#b8920e', ai:false, pdfBranded:false, csvImport:false, liveData:false,  trialDays:14 },
-  starter:    { vehicles:20,   members:2,        label:'Starter',       badge:'#7a7a72', ai:false, pdfBranded:false, csvImport:true,  liveData:false,  trialDays:0  },
-  pro:        { vehicles:200,  members:10,       label:'Professional',  badge:'#c8603a', ai:true,  pdfBranded:true,  csvImport:true,  liveData:true,   trialDays:0  },
-  enterprise: { vehicles:1e9,  members:1e9,      label:'Enterprise',    badge:'#2e7d52', ai:true,  pdfBranded:true,  csvImport:true,  liveData:true,   trialDays:0  },
+  // Trial: full feature access for 14 days so users experience the real product
+  trial:      { vehicles:200, members:10, label:'Free Trial',   badge:'#b8920e', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:14 },
+  starter:    { vehicles:20,  members:2,  label:'Starter',      badge:'#7a7a72', ai:false,pdfBranded:false,csvImport:true, liveData:false, trialDays:0  },
+  pro:        { vehicles:200, members:10, label:'Professional', badge:'#c8603a', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:0  },
+  enterprise: { vehicles:1e9, members:1e9,label:'Enterprise',   badge:'#2e7d52', ai:true, pdfBranded:true, csvImport:true, liveData:true,  trialDays:0  },
 };
 
 // Role capabilities
@@ -1644,12 +1629,14 @@ function trialDaysLeft() {
 }
 
 function isTrialExpired() {
-  return (session?.plan === 'trial') && trialDaysLeft() <= 0;
+  if (session?.plan !== 'trial') return false;  // only trial accounts expire
+  return trialDaysLeft() <= 0;
 }
 
 // Gate check — returns true if action is blocked, shows UI message
 function gate(feature, action='') {
-  if (isTrialExpired()) {
+  // Trial: full access for 14 days. Only block on expiry.
+  if (isTrialExpired() && session?.plan === 'trial') {
     showUpgradeWall('trial_expired');
     return true;
   }
@@ -2049,23 +2036,30 @@ async function addVehicleToStore(v) {
       // ✅ Supabase insert succeeded
       dequeueVehicle(v.id);
       // Update localStorage mirror so offline reads stay consistent
-      const lf = getStore('fy_fleet_'+session.accountId) || [];
-      if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+session.accountId, lf); }
+      // Update localStorage mirror — replace existing record if found, prepend if new
+      const lf1 = getStore('fy_fleet_'+session.accountId) || [];
+      const lf1Idx = lf1.findIndex(x => String(x.id) === String(v.id));
+      if (lf1Idx >= 0) lf1[lf1Idx] = v; else lf1.unshift(v);
+      setStore('fy_fleet_'+session.accountId, lf1);
       return v;
     } catch(e) {
       console.error('[ADD] Supabase insert failed:', e.message);
       // Queue for later sync + save to localStorage so data is never lost
       enqueueVehicle(v);
-      const lf = getStore('fy_fleet_'+session.accountId) || [];
-      if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+session.accountId, lf); }
+      const lf2 = getStore('fy_fleet_'+session.accountId) || [];
+      const lf2Idx = lf2.findIndex(x => String(x.id) === String(v.id));
+      if (lf2Idx >= 0) lf2[lf2Idx] = v; else lf2.unshift(v);
+      setStore('fy_fleet_'+session.accountId, lf2);
       toast('⚠️ Saved locally — will sync to Supabase when connection restores.');
       return v;
     }
   } else {
     // No Supabase — queue and save locally
     enqueueVehicle(v);
-    const lf = getStore('fy_fleet_'+(session?.accountId||'')) || [];
-    if (!lf.find(x => x.id === v.id)) { lf.unshift(v); setStore('fy_fleet_'+(session?.accountId||''), lf); }
+    const lf3 = getStore('fy_fleet_'+(session?.accountId||'')) || [];
+    const lf3Idx = lf3.findIndex(x => String(x.id) === String(v.id));
+    if (lf3Idx >= 0) lf3[lf3Idx] = v; else lf3.unshift(v);
+    setStore('fy_fleet_'+(session?.accountId||''), lf3);
     return v;
   }
 }
@@ -2575,8 +2569,9 @@ function nav(sec, opts) {
     settings: () => !can('settings'),
   };
   if (navGates[sec] && navGates[sec]()) {
-    if (!planHas('csvImport') && sec==='import') { showUpgradeWall('csvImport'); return; }
-    if (!planHas('liveData') && sec==='livedata') { showUpgradeWall('liveData'); return; }
+    // Trial has full access — only gate non-trial accounts on plan features
+    if (!planHas('csvImport') && sec==='import' && session?.plan !== 'trial') { showUpgradeWall('csvImport'); return; }
+    if (!planHas('liveData')  && sec==='livedata' && session?.plan !== 'trial') { showUpgradeWall('liveData'); return; }
     if (!can('settings') && sec==='settings') { toast('Only admins can access settings.'); return; }
     if (!can('addVehicle') && sec==='add') { toast('Your viewer role cannot add vehicles.'); return; }
   }
@@ -2909,30 +2904,75 @@ async function showReplaceDecision(vehicleId) {
 }
 
 
-function confirmReplaceDecision(type) {
+async function confirmReplaceDecision(type) {
   if (!_decisionVehicleId) return;
+  const vid = _decisionVehicleId;
+  _decisionVehicleId = null;
   closeModal('modal-replace-decision');
-  getFleet().then(fleet => {
-    const v = fleet.find(x => String(x.id) === String(_decisionVehicleId));
-    if (!v) return;
-    const s = scoreVehicle(v).score;
-    if (type === 'replaced') {
-      recordReplaced(_decisionVehicleId, s, v.mileage);
-      toast(`✅ ${v.model} marked as replaced. It will be archived in fleet history.`);
-      // Optionally remove from active fleet after a delay
-      setTimeout(() => {
-        if (confirm(`Remove ${v.model} from the active fleet now?`)) {
-          delVehicle(_decisionVehicleId);
-        }
-      }, 500);
-    } else {
-      recordContinue(_decisionVehicleId, s, v.mileage);
-      const threshold = getAdaptiveThreshold();
-      toast(`⏩ Noted — tracking ${v.model} as continued operation past Replace Now. Your adaptive threshold is now ${threshold}.`);
-      renderTable(); // refresh to show continuation badge
-    }
-    _decisionVehicleId = null;
+  const fleet = await getFleet();
+  const v = fleet.find(x => String(x.id) === String(vid));
+  if (!v) { toast('Vehicle not found'); return; }
+  const { score: s } = score(v);  // score() is the correct function name
+
+  if (type === 'replaced') {
+    // 1. Archive to replaced_vehicles table first
+    await archiveReplacedVehicle(v, s);
+    // 2. Record the decision
+    recordReplaced(vid, s, v.mileage);
+    // 3. Remove from active fleet directly (no nested confirm/modal)
+    await deleteVehicleFromStore(vid);
+    _fleetCache = null;
+    await renderTable();
+    renderUnifiedDashboard();
+    toast(`✅ ${v.model} archived and removed from active fleet. Data retained for 30 days.`);
+  } else {
+    recordContinue(vid, s, v.mileage);
+    const threshold = getAdaptiveThreshold();
+    _fleetCache = null;
+    await renderTable();
+    toast(`⏩ Tracking ${v.model} past Replace Now threshold. Adaptive threshold: ${threshold}.`);
+  }
+}
+
+// Archive a vehicle to replaced_vehicles table before deletion
+async function archiveReplacedVehicle(v, scoreAtReplacement) {
+  // Always save to localStorage archive first
+  const archiveKey = 'fy_archive_' + (session?.accountId || '');
+  const archive = getStore(archiveKey) || [];
+  archive.unshift({
+    ...v,
+    archived_at: new Date().toISOString(),
+    score_at_replacement: scoreAtReplacement,
+    expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString()
   });
+  // Keep only last 200 archived vehicles
+  setStore(archiveKey, archive.slice(0, 200));
+
+  // Save to Supabase replaced_vehicles table
+  if (!isSupabaseReady() || !session?.accountId) return;
+  try {
+    const row = {
+      account_id:           session.accountId,
+      original_vehicle_id:  String(v.id),
+      model:                v.model || '',
+      brand:                v.brand || '',
+      year:                 v.year || null,
+      mileage_at_replacement: parseInt(v.mileage)||0,
+      score_at_replacement:   scoreAtReplacement,
+      fueltype:             v.fueltype || '',
+      annual_km:            parseInt(v.annual)||0,
+      maint_cost:           parseInt(v.maint)||0,
+      vehicle_value:        parseInt(v.value)||0,
+      insurance:            parseInt(v.insurance)||0,
+      dept:                 v.dept || '',
+      condition:            v.condition || '',
+      archived_at:          new Date().toISOString(),
+      expires_at:           new Date(Date.now() + 30*24*60*60*1000).toISOString()
+    };
+    const { error } = await sb.from('replaced_vehicles').insert(row);
+    if (error) console.warn('[ARCHIVE] Supabase archive failed:', error.message);
+    else console.log('[ARCHIVE] Vehicle archived:', v.model);
+  } catch(e) { console.warn('[ARCHIVE] Archive error:', e.message); }
 }
 
 async function showBreakdown(id) {
