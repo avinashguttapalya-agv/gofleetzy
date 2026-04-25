@@ -5534,32 +5534,50 @@ async function openBulkKm() {
 // without touching any other vehicle fields
 async function updateVehicleMileage(vehicleId, newMileage) {
   const kmInt = parseInt(newMileage);
-  if (!kmInt) return false;
-
-  // 1. Update localStorage in-place
+  if (!kmInt || kmInt <= 0) return false;
+  const vid = String(vehicleId);
   const key = 'fy_fleet_' + (session?.accountId||'');
-  const lf = getStore(key) || [];
-  const idx = lf.findIndex(x => String(x.id) === String(vehicleId));
-  if (idx >= 0) {
-    lf[idx] = { ...lf[idx], mileage: kmInt };
-    setStore(key, lf);
-  }
 
-  // 2. Update Supabase
+  // 1. Update Supabase first (source of truth when connected)
+  let sbOk = false;
   if (isSupabaseReady() && session?.accountId) {
     try {
-      const { error } = await sb.from('vehicles')
+      const { error, data } = await sb.from('vehicles')
         .update({ mileage: kmInt })
-        .eq('id', String(vehicleId))
-        .eq('account_id', session.accountId);
-      if (error) console.warn('[KM] Supabase update failed:', error.message);
-      else console.log('[KM] Updated', vehicleId, '→', kmInt, 'km');
+        .eq('id', vid)
+        .eq('account_id', session.accountId)
+        .select();
+      if (error) {
+        console.warn('[KM] Supabase update failed:', error.message, error.code);
+      } else {
+        sbOk = true;
+        console.log('[KM] Supabase updated vehicle', vid, '→', kmInt, 'km');
+      }
     } catch(e) { console.warn('[KM] Supabase error:', e.message); }
   }
 
-  // 3. Always clear cache so next read reflects new value
-  _fleetCache = null;
-  return true;
+  // 2. Update localStorage mirror.
+  // If the vehicle is in cache (_fleetCache), use that as the authoritative
+  // source to rebuild the localStorage mirror — handles the case where
+  // vehicles came from Supabase and localStorage is empty.
+  const source = _fleetCache || getStore(key) || [];
+  const idx = source.findIndex(x => String(x.id) === vid);
+  if (idx >= 0) {
+    source[idx] = { ...source[idx], mileage: kmInt };
+    setStore(key, source);
+  } else {
+    // Vehicle not found in cache or localStorage — this shouldn't happen
+    // but if it does, log it so we can debug
+    console.warn('[KM] Vehicle', vid, 'not found in cache or localStorage');
+  }
+
+  // 3. Update cache in-place so UI reflects change immediately
+  if (_fleetCache) {
+    const ci = _fleetCache.findIndex(x => String(x.id) === vid);
+    if (ci >= 0) _fleetCache[ci] = { ..._fleetCache[ci], mileage: kmInt };
+  }
+
+  return sbOk || idx >= 0;
 }
 
 async function saveBulkKm() {
@@ -5594,7 +5612,8 @@ async function saveBulkKm() {
   if (updated > 0) {
     setTimeout(async () => {
       closeModal('modal-bulk-km');
-      _fleetCache = null;
+      // Don't null _fleetCache — updateVehicleMileage already updated it in-place
+      // Just re-render from the updated cache
       await renderTable();
       renderUnifiedDashboard();
     }, 1000);
