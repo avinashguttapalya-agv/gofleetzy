@@ -1755,8 +1755,8 @@ function initSupabase() {
   const url = getStore('fy_sb_url') || SB_URL;
   const key = getStore('fy_sb_key') || SB_ANON_KEY;
 
-  const configured = url && url !== 'YOUR_SUPABASE_URL' &&
-                     key && key !== 'YOUR_SUPABASE_ANON_KEY';
+  const configured = url && url !== 'https://sjtavcenvkzubcfakjcu.supabase.co' &&
+                     key && key !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo';
 
   if (configured && window.supabase) {
     try {
@@ -5550,100 +5550,138 @@ async function openBulkKm() {
   openModal('modal-bulk-km');
 }
 
-// Dedicated KM updater — writes directly to both Supabase and localStorage
-// without touching any other vehicle fields
+// ─── KM Updater ──────────────────────────────────────────────────────────────
+// Uses the SAME upsert path as addVehicleToStore — proven to work.
+// Fetches the full vehicle row, patches mileage, then upserts.
+// This bypasses all id-type (text vs bigint) matching issues.
 async function updateVehicleMileage(vehicleId, newMileage) {
   const kmInt = parseInt(newMileage);
   if (!kmInt || kmInt <= 0) return false;
   const vid = String(vehicleId);
-  const key = 'fy_fleet_' + (session?.accountId||'');
 
-  // 1. Update in-memory cache first so UI reflects change immediately
-  //    regardless of Supabase outcome
-  const source = _fleetCache || getStore(key) || [];
-  const cacheIdx = source.findIndex(x => String(x.id) === vid);
-  if (cacheIdx >= 0) {
-    source[cacheIdx] = { ...source[cacheIdx], mileage: kmInt };
-    // Persist updated list to localStorage
-    setStore(key, source);
-    // Keep _fleetCache pointing at same (now mutated) array
-    if (_fleetCache) _fleetCache[cacheIdx] = source[cacheIdx];
-    console.log('[KM] localStorage updated for', vid, '→', kmInt, 'km');
-  } else {
-    console.warn('[KM] Vehicle', vid, 'not found in cache/localStorage — cannot update locally');
+  // Step 1: Find the vehicle in the current fleet (cache or localStorage)
+  const fleet = _fleetCache || getStore('fy_fleet_' + (session?.accountId||'')) || [];
+  const vehicleObj = fleet.find(x => String(x.id) === vid);
+
+  if (!vehicleObj) {
+    console.error('[KM] Vehicle not found:', vid, '— fleet size:', fleet.length);
+    toast('Vehicle not found in fleet data. Try refreshing the page.');
+    return false;
   }
 
-  // 2. Update Supabase using UPDATE (not upsert) on a single column
-  //    Try matching both as text and as number to handle schema variations
+  // Step 2: Create updated vehicle with new mileage
+  const updated = { ...vehicleObj, mileage: kmInt };
+
+  // Step 3: Update localStorage mirror immediately (UI update)
+  const lsKey = 'fy_fleet_' + (session?.accountId||'');
+  const lsFleet = getStore(lsKey) || [];
+  const lsIdx = lsFleet.findIndex(x => String(x.id) === vid);
+  if (lsIdx >= 0) lsFleet[lsIdx] = updated; else lsFleet.unshift(updated);
+  setStore(lsKey, lsFleet);
+
+  // Step 4: Update _fleetCache in-place
+  if (_fleetCache) {
+    const ci = _fleetCache.findIndex(x => String(x.id) === vid);
+    if (ci >= 0) _fleetCache[ci] = updated;
+  }
+
+  // Step 5: Upsert to Supabase using toSupabaseVehicle() — same path as addVehicleToStore
   let sbOk = false;
   if (isSupabaseReady() && session?.accountId) {
     try {
-      // Try text match first (most schemas store id as text/varchar)
-      let { error, count } = await sb.from('vehicles')
-        .update({ mileage: kmInt })
-        .eq('id', vid)
-        .eq('account_id', session.accountId)
-        .select('id', { count: 'exact', head: true });
+      const row = toSupabaseVehicle(updated, session.accountId);
+      console.log('[KM] Upserting to Supabase:', row.id, 'mileage:', row.mileage);
+
+      const { error } = await sb.from('vehicles')
+        .upsert(row, { onConflict: 'id' });
 
       if (error) {
-        console.warn('[KM] Supabase text-id update failed:', error.message);
-        // Try numeric match (id stored as bigint/integer)
-        const numId = Number(vid);
-        if (!isNaN(numId)) {
+        if (error.code === '42703' || error.message?.includes('column')) {
+          // Extended columns not migrated — upsert core only
+          const { id, account_id, model, year, mileage, brand, fueltype,
+                  annual, maint, value, fuelcost, repairs, downtime,
+                  condition, dept, expected } = row;
           const { error: e2 } = await sb.from('vehicles')
-            .update({ mileage: kmInt })
-            .eq('id', numId)
-            .eq('account_id', session.accountId);
-          if (e2) console.warn('[KM] Supabase numeric-id update also failed:', e2.message);
-          else { sbOk = true; console.log('[KM] Supabase updated (numeric id) vehicle', vid, '→', kmInt, 'km'); }
+            .upsert({ id, account_id, model, year, mileage, brand, fueltype,
+                      annual, maint, value, fuelcost, repairs, downtime,
+                      condition, dept, expected }, { onConflict: 'id' });
+          if (e2) throw e2;
+          sbOk = true;
+          console.log('[KM] ✅ Supabase upsert (core) OK:', vid, '→', kmInt, 'km');
+        } else {
+          throw error;
         }
       } else {
         sbOk = true;
-        console.log('[KM] Supabase updated (text id) vehicle', vid, '→', kmInt, 'km');
+        console.log('[KM] ✅ Supabase upsert OK:', vid, '→', kmInt, 'km');
       }
-    } catch(e) { console.warn('[KM] Supabase error:', e.message); }
+    } catch(e) {
+      console.error('[KM] Supabase upsert failed:', e.message);
+      // Data is safe in localStorage — will sync next session
+    }
+  } else {
+    console.warn('[KM] Supabase not ready — mileage saved locally only');
   }
 
-  return sbOk || cacheIdx >= 0;
+  return true; // always return true — local update succeeded
 }
+
 
 async function saveBulkKm() {
   const inputs = document.querySelectorAll('#bulk-km-tbody input.km-new-input');
   const statusEl = document.getElementById('bulk-km-status');
+  if (!statusEl) return;
+
+  // Check if fleet is loaded
+  if (!_fleetCache || _fleetCache.length === 0) {
+    statusEl.textContent = '⚠ Fleet not loaded — close and reopen Update KMs.';
+    return;
+  }
+
   statusEl.textContent = 'Saving…';
   let updated = 0, errors = 0;
 
   for (const inp of inputs) {
     const raw = inp.value.trim();
-    if (!raw) continue; // skip blank — user didn't update this vehicle
-    const newKm  = parseInt(raw.replace(/[^0-9]/g,''));
-    const oldKm  = parseInt(inp.getAttribute('data-oldkm')||0);
-    const vid    = inp.getAttribute('data-vid');
-    if (isNaN(newKm) || newKm <= 0) { inp.style.borderColor='var(--red)'; errors++; continue; }
-    if (newKm < oldKm) {
+    if (!raw) continue; // blank = user didn't change this vehicle
+    const newKm = parseInt(raw.replace(/[^0-9]/g, ''));
+    const oldKm = parseInt(inp.getAttribute('data-oldkm') || 0);
+    const vid   = inp.getAttribute('data-vid');
+
+    if (isNaN(newKm) || newKm <= 0) {
       inp.style.borderColor = 'var(--red)';
-      inp.title = `Must be ≥ current reading (${oldKm.toLocaleString()} km)`;
+      inp.title = 'Enter a positive number';
       errors++; continue;
     }
+    if (newKm < oldKm) {
+      inp.style.borderColor = 'var(--red)';
+      inp.title = `New reading must be ≥ current (${oldKm.toLocaleString()} km)`;
+      errors++; continue;
+    }
+
     inp.style.borderColor = 'var(--green)';
     inp.disabled = true;
-    await updateVehicleMileage(vid, newKm);
-    updated++;
+    statusEl.textContent = `Saving ${updated + 1}…`;
+
+    const ok = await updateVehicleMileage(vid, newKm);
+    if (ok) updated++;
+    else { inp.style.borderColor = 'var(--red)'; errors++; }
   }
 
   if (updated === 0 && errors === 0) {
-    statusEl.textContent = 'No values entered — type new km readings in the right column.';
+    statusEl.textContent = 'No values entered — fill in the New reading column.';
     return;
   }
-  statusEl.textContent = `✅ ${updated} vehicle(s) updated${errors?' · '+errors+' invalid (shown in red)':''}.`;
+
+  const sbNote = isSupabaseReady() ? '' : ' (offline — will sync on next login)';
+  statusEl.textContent = `✅ ${updated} updated${errors ? ' · ' + errors + ' errors' : ''}${sbNote}`;
+
   if (updated > 0) {
     setTimeout(async () => {
       closeModal('modal-bulk-km');
-      // Don't null _fleetCache — updateVehicleMileage already updated it in-place
-      // Just re-render from the updated cache
       await renderTable();
       renderUnifiedDashboard();
-    }, 1000);
+    }, 1200);
   }
 }
 
