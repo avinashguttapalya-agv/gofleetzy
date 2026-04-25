@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1750,8 +1749,8 @@ function initSupabase() {
   const url = getStore('fy_sb_url') || SB_URL;
   const key = getStore('fy_sb_key') || SB_ANON_KEY;
 
-  const configured = url && url !== 'YOUR_SUPABASE_URL' &&
-                     key && key !== 'YOUR_SUPABASE_ANON_KEY';
+  const configured = url && url !== 'https://sjtavcenvkzubcfakjcu.supabase.co' &&
+                     key && key !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqdGF2Y2Vudmt6dWJjZmFramN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTAyNzUsImV4cCI6MjA5MDQ2NjI3NX0.i9mLs1RrNvllwI_3jMiUozF7fio1-6gYx4CcVT6SOSo';
 
   if (configured && window.supabase) {
     try {
@@ -5534,79 +5533,119 @@ async function openBulkKm() {
 }
 
 // ─── KM Updater ──────────────────────────────────────────────────────────────
-// Uses the SAME upsert path as addVehicleToStore — proven to work.
-// Fetches the full vehicle row, patches mileage, then upserts.
-// This bypasses all id-type (text vs bigint) matching issues.
+// Strategy: try 3 approaches in order:
+// 1. .update().eq('id', id_as_string)  — works if id column is text
+// 2. .update().eq('id', id_as_number)  — works if id column is bigint/int
+// 3. Full row upsert                    — fallback for any schema
+// Always update localStorage + cache first so UI is instant.
 async function updateVehicleMileage(vehicleId, newMileage) {
   const kmInt = parseInt(newMileage);
   if (!kmInt || kmInt <= 0) return false;
   const vid = String(vehicleId);
+  const vidNum = Number(vehicleId);
 
-  // Step 1: Find the vehicle in the current fleet (cache or localStorage)
-  const fleet = _fleetCache || getStore('fy_fleet_' + (session?.accountId||'')) || [];
-  const vehicleObj = fleet.find(x => String(x.id) === vid);
-
-  if (!vehicleObj) {
-    console.error('[KM] Vehicle not found:', vid, '— fleet size:', fleet.length);
-    toast('Vehicle not found in fleet data. Try refreshing the page.');
+  // Step 1: Find vehicle in cache
+  const source = _fleetCache || getStore('fy_fleet_' + (session?.accountId||'')) || [];
+  const cIdx = source.findIndex(x => String(x.id) === vid);
+  if (cIdx < 0) {
+    console.error('[KM] Vehicle', vid, 'not found in cache (size:', source.length, ')');
+    toast('Vehicle not found — please close and reopen Update KMs.');
     return false;
   }
-
-  // Step 2: Create updated vehicle with new mileage
+  const vehicleObj = source[cIdx];
   const updated = { ...vehicleObj, mileage: kmInt };
 
-  // Step 3: Update localStorage mirror immediately (UI update)
+  // Step 2: Patch localStorage and _fleetCache immediately
+  source[cIdx] = updated;
   const lsKey = 'fy_fleet_' + (session?.accountId||'');
-  const lsFleet = getStore(lsKey) || [];
-  const lsIdx = lsFleet.findIndex(x => String(x.id) === vid);
-  if (lsIdx >= 0) lsFleet[lsIdx] = updated; else lsFleet.unshift(updated);
-  setStore(lsKey, lsFleet);
+  setStore(lsKey, source);
+  if (_fleetCache && _fleetCache !== source) {
+    const fi = _fleetCache.findIndex(x => String(x.id) === vid);
+    if (fi >= 0) _fleetCache[fi] = updated;
+  }
+  console.log('[KM] Local update done:', vid, '→', kmInt, 'km');
 
-  // Step 4: Update _fleetCache in-place
-  if (_fleetCache) {
-    const ci = _fleetCache.findIndex(x => String(x.id) === vid);
-    if (ci >= 0) _fleetCache[ci] = updated;
+  // Step 3: Update Supabase
+  if (!isSupabaseReady() || !session?.accountId) {
+    console.warn('[KM] Supabase not ready — saved locally only');
+    return true;
   }
 
-  // Step 5: Upsert to Supabase using toSupabaseVehicle() — same path as addVehicleToStore
+  const accountId = session.accountId;
   let sbOk = false;
-  if (isSupabaseReady() && session?.accountId) {
-    try {
-      const row = toSupabaseVehicle(updated, session.accountId);
-      console.log('[KM] Upserting to Supabase:', row.id, 'mileage:', row.mileage);
 
-      const { error } = await sb.from('vehicles')
+  try {
+    // Attempt A: update mileage column directly (string id match)
+    const { data: dataA, error: errA } = await sb
+      .from('vehicles')
+      .update({ mileage: kmInt })
+      .eq('id', vid)
+      .eq('account_id', accountId)
+      .select('id');
+
+    if (!errA && dataA && dataA.length > 0) {
+      sbOk = true;
+      console.log('[KM] ✅ Supabase update (string id) succeeded:', vid, '→', kmInt);
+    }
+
+    // Attempt B: numeric id match (if column is bigint)
+    if (!sbOk && !isNaN(vidNum)) {
+      const { data: dataB, error: errB } = await sb
+        .from('vehicles')
+        .update({ mileage: kmInt })
+        .eq('id', vidNum)
+        .eq('account_id', accountId)
+        .select('id');
+
+      if (!errB && dataB && dataB.length > 0) {
+        sbOk = true;
+        console.log('[KM] ✅ Supabase update (numeric id) succeeded:', vidNum, '→', kmInt);
+      }
+    }
+
+    // Attempt C: full upsert as last resort
+    if (!sbOk) {
+      console.log('[KM] Direct update matched 0 rows — trying full upsert');
+      const row = toSupabaseVehicle(updated, accountId);
+      // Ensure mileage is numeric in the row
+      row.mileage = kmInt;
+
+      const { error: errC } = await sb
+        .from('vehicles')
         .upsert(row, { onConflict: 'id' });
 
-      if (error) {
-        if (error.code === '42703' || error.message?.includes('column')) {
-          // Extended columns not migrated — upsert core only
-          const { id, account_id, model, year, mileage, brand, fueltype,
-                  annual, maint, value, fuelcost, repairs, downtime,
-                  condition, dept, expected } = row;
-          const { error: e2 } = await sb.from('vehicles')
-            .upsert({ id, account_id, model, year, mileage, brand, fueltype,
-                      annual, maint, value, fuelcost, repairs, downtime,
-                      condition, dept, expected }, { onConflict: 'id' });
-          if (e2) throw e2;
-          sbOk = true;
-          console.log('[KM] ✅ Supabase upsert (core) OK:', vid, '→', kmInt, 'km');
+      if (errC) {
+        // Extended columns missing — upsert core fields only
+        if (errC.code === '42703' || errC.message?.includes('column')) {
+          const { error: errD } = await sb.from('vehicles').upsert({
+            id: row.id, account_id: accountId,
+            model: row.model, year: row.year, mileage: kmInt,
+            brand: row.brand, fueltype: row.fueltype,
+            annual: row.annual, maint: row.maint, value: row.value,
+            fuelcost: row.fuelcost, repairs: row.repairs,
+            downtime: row.downtime, condition: row.condition,
+            dept: row.dept, expected: row.expected
+          }, { onConflict: 'id' });
+          if (!errD) { sbOk = true; console.log('[KM] ✅ Core upsert OK'); }
+          else console.error('[KM] Core upsert also failed:', errD.message);
         } else {
-          throw error;
+          console.error('[KM] Full upsert failed:', errC.message, errC.code);
         }
       } else {
         sbOk = true;
-        console.log('[KM] ✅ Supabase upsert OK:', vid, '→', kmInt, 'km');
+        console.log('[KM] ✅ Full upsert succeeded');
       }
-    } catch(e) {
-      console.error('[KM] Supabase upsert failed:', e.message);
-      // Data is safe in localStorage — will sync next session
     }
-  } else {
-    console.warn('[KM] Supabase not ready — mileage saved locally only');
+
+  } catch(e) {
+    console.error('[KM] Supabase error:', e.message);
   }
 
-  return true; // always return true — local update succeeded
+  if (!sbOk) {
+    console.warn('[KM] ⚠ Supabase update failed — mileage saved locally, will sync on next add/edit.');
+  }
+
+  return true; // local always succeeded
 }
 
 
