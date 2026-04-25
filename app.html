@@ -2252,7 +2252,8 @@ async function doSignIn() {
         name:      profile?.name || data.user.email.split('@')[0],
         org:       profile?.org  || 'My Fleet',
         plan:      profile?.plan || 'trial',
-        role:      'admin'
+        role:      'admin',
+        preferredCurrency: profile?.preferred_currency || null,
       };
       setStore('fy_session', session);
       _fleetCache = null; _teamCache = null;
@@ -3396,6 +3397,12 @@ function launchApp(){
   // Set initial history state
   try { history.replaceState({ sec: startSec }, '', '#' + startSec); } catch(e) {}
 
+  // Apply DB-loaded currency preference first, then sync dropdown
+  if (session?.preferredCurrency) {
+    const key = 'fy_account_currency' + (session.accountId ? '_' + session.accountId : '');
+    localStorage.setItem(key, session.preferredCurrency);
+    localStorage.setItem('fy_account_currency', session.preferredCurrency);
+  }
   // Always sync the currency dropdown BEFORE any save can fire
   loadCurrencySetting();
   // Apply geo-based pricing
@@ -4861,22 +4868,35 @@ async function saveEditVehicle() {
 // ═══════════ CURRENCY SYSTEM ═══════════
 // Stored as "CODE|SYMBOL|LOCALE" e.g. "EUR|€|es"
 function getAccountCurrency() {
-  // Per-account key so switching accounts doesn't bleed currency settings
+  // Priority: 1) per-account localStorage, 2) session.preferredCurrency (from DB login),
+  // 3) global localStorage fallback, 4) default USD
   const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
-  const stored = localStorage.getItem(key) || localStorage.getItem('fy_account_currency');
+  const stored = localStorage.getItem(key)
+    || session?.preferredCurrency
+    || localStorage.getItem('fy_account_currency');
   if (stored) {
     const [code, symbol, locale] = stored.split('|');
-    return { code, symbol, locale: locale || 'en' };
+    if (code && symbol) return { code, symbol, locale: locale || 'en' };
   }
   return { code: 'USD', symbol: '$', locale: 'en' };
 }
 
 function setAccountCurrency(val) {
-  // val = "USD|$|en"
-  // Save under both per-account key (authoritative) and global fallback
+  // val = "EUR|€|es"
+  // 1. Save to localStorage (immediate, works offline)
   const key = 'fy_account_currency' + (session?.accountId ? '_' + session.accountId : '');
   localStorage.setItem(key, val);
-  localStorage.setItem('fy_account_currency', val); // keep global for backwards compat
+  localStorage.setItem('fy_account_currency', val);
+  // 2. Persist to Supabase profiles.preferred_currency (survives device changes)
+  if (isSupabaseReady() && session?.accountId) {
+    sb.from('profiles')
+      .update({ preferred_currency: val })
+      .eq('id', session.accountId)
+      .then(({ error }) => {
+        if (error) console.warn('[CURRENCY] Failed to persist to Supabase:', error.message);
+        else console.log('[CURRENCY] Saved to Supabase profiles:', val);
+      });
+  }
 }
 
 // Exchange rates vs USD (approximate, update quarterly)
@@ -5538,46 +5558,53 @@ async function updateVehicleMileage(vehicleId, newMileage) {
   const vid = String(vehicleId);
   const key = 'fy_fleet_' + (session?.accountId||'');
 
-  // 1. Update Supabase first (source of truth when connected)
+  // 1. Update in-memory cache first so UI reflects change immediately
+  //    regardless of Supabase outcome
+  const source = _fleetCache || getStore(key) || [];
+  const cacheIdx = source.findIndex(x => String(x.id) === vid);
+  if (cacheIdx >= 0) {
+    source[cacheIdx] = { ...source[cacheIdx], mileage: kmInt };
+    // Persist updated list to localStorage
+    setStore(key, source);
+    // Keep _fleetCache pointing at same (now mutated) array
+    if (_fleetCache) _fleetCache[cacheIdx] = source[cacheIdx];
+    console.log('[KM] localStorage updated for', vid, '→', kmInt, 'km');
+  } else {
+    console.warn('[KM] Vehicle', vid, 'not found in cache/localStorage — cannot update locally');
+  }
+
+  // 2. Update Supabase using UPDATE (not upsert) on a single column
+  //    Try matching both as text and as number to handle schema variations
   let sbOk = false;
   if (isSupabaseReady() && session?.accountId) {
     try {
-      const { error, data } = await sb.from('vehicles')
+      // Try text match first (most schemas store id as text/varchar)
+      let { error, count } = await sb.from('vehicles')
         .update({ mileage: kmInt })
         .eq('id', vid)
         .eq('account_id', session.accountId)
-        .select();
+        .select('id', { count: 'exact', head: true });
+
       if (error) {
-        console.warn('[KM] Supabase update failed:', error.message, error.code);
+        console.warn('[KM] Supabase text-id update failed:', error.message);
+        // Try numeric match (id stored as bigint/integer)
+        const numId = Number(vid);
+        if (!isNaN(numId)) {
+          const { error: e2 } = await sb.from('vehicles')
+            .update({ mileage: kmInt })
+            .eq('id', numId)
+            .eq('account_id', session.accountId);
+          if (e2) console.warn('[KM] Supabase numeric-id update also failed:', e2.message);
+          else { sbOk = true; console.log('[KM] Supabase updated (numeric id) vehicle', vid, '→', kmInt, 'km'); }
+        }
       } else {
         sbOk = true;
-        console.log('[KM] Supabase updated vehicle', vid, '→', kmInt, 'km');
+        console.log('[KM] Supabase updated (text id) vehicle', vid, '→', kmInt, 'km');
       }
     } catch(e) { console.warn('[KM] Supabase error:', e.message); }
   }
 
-  // 2. Update localStorage mirror.
-  // If the vehicle is in cache (_fleetCache), use that as the authoritative
-  // source to rebuild the localStorage mirror — handles the case where
-  // vehicles came from Supabase and localStorage is empty.
-  const source = _fleetCache || getStore(key) || [];
-  const idx = source.findIndex(x => String(x.id) === vid);
-  if (idx >= 0) {
-    source[idx] = { ...source[idx], mileage: kmInt };
-    setStore(key, source);
-  } else {
-    // Vehicle not found in cache or localStorage — this shouldn't happen
-    // but if it does, log it so we can debug
-    console.warn('[KM] Vehicle', vid, 'not found in cache or localStorage');
-  }
-
-  // 3. Update cache in-place so UI reflects change immediately
-  if (_fleetCache) {
-    const ci = _fleetCache.findIndex(x => String(x.id) === vid);
-    if (ci >= 0) _fleetCache[ci] = { ..._fleetCache[ci], mileage: kmInt };
-  }
-
-  return sbOk || idx >= 0;
+  return sbOk || cacheIdx >= 0;
 }
 
 async function saveBulkKm() {
@@ -5729,7 +5756,8 @@ document.addEventListener('DOMContentLoaded', () => { populateRegionalPrices(); 
           name: profile?.name || sbSess.user.email,
           org: profile?.org || 'My Fleet',
           plan: profile?.plan || 'trial',
-          role: 'admin'
+          role: 'admin',
+          preferredCurrency: profile?.preferred_currency || null,
         };
         setStore('fy_session', session);
         launchApp();
